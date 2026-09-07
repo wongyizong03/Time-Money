@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>光陰與金 - Google Drive 雲端同步版</title>
+    <title>光陰與金 - Google Drive 雙端同步完整版</title>
     <!-- Google Identity Services SDK -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
@@ -27,7 +27,7 @@
         .full-width { grid-column: 1 / -1; }
         .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .user-info { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; }
-        .sync-badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; background: #e0f2fe; color: #0369a1; }
+        .sync-badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; background: #e0f2fe; color: #0369a1; font-weight: 600; }
         h2 { font-size: 1.2rem; color: var(--primary-color); display: flex; align-items: center; justify-content: space-between; }
         
         .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
@@ -72,7 +72,7 @@
             <div>
                 <button id="login-btn" onclick="requestDriveAccess()">🔗 登入 Google 同步雲端</button>
                 <div id="user-section" class="user-info" style="display: none;">
-                    <span id="sync-status" class="sync-badge">同步中...</span>
+                    <span id="sync-status" class="sync-badge">未同步</span>
                     <button onclick="syncFromDrive()" class="action-btn">手動同步</button>
                     <button onclick="logoutGoogle()" class="danger">登出</button>
                 </div>
@@ -87,6 +87,7 @@
         <div class="calendar-grid" id="calendar-grid"></div>
     </div>
 
+    <!-- 行程管理區塊 -->
     <div class="card">
         <h2>📅 行程管理</h2>
         <div class="form-group">
@@ -111,6 +112,7 @@
         <ul class="item-list" id="sch-list"></ul>
     </div>
 
+    <!-- 記帳管理區塊 -->
     <div class="card">
         <h2>💰 記帳管理</h2>
         <div class="form-group">
@@ -141,7 +143,7 @@
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     }
 
-    // --- Google Drive API 串接 ---
+    // --- Google Drive 認證與授權 ---
     function initGoogleAuth() {
         tokenClient = google.accounts.oauth2.initTokenClient({
             client_id: CLIENT_ID,
@@ -149,29 +151,21 @@
             callback: async (tokenResponse) => {
                 if (tokenResponse && tokenResponse.access_token) {
                     accessToken = tokenResponse.access_token;
-                    localStorage.setItem('gdrive_token', accessToken);
                     updateUIStatus(true);
                     await syncFromDrive();
                 }
             },
         });
-
-        const savedToken = localStorage.getItem('gdrive_token');
-        if (savedToken) {
-            accessToken = savedToken;
-            updateUIStatus(true);
-            syncFromDrive();
-        }
     }
 
     function requestDriveAccess() {
-        tokenClient.requestAccessToken();
+        if (!tokenClient) initGoogleAuth();
+        tokenClient.requestAccessToken({ prompt: '' });
     }
 
     function logoutGoogle() {
         accessToken = null;
         driveFileId = null;
-        localStorage.removeItem('gdrive_token');
         updateUIStatus(false);
     }
 
@@ -180,21 +174,28 @@
         document.getElementById('user-section').style.display = isLoggedIn ? 'flex' : 'none';
     }
 
-    // 搜尋 Drive AppData 資料夾中的檔案
+    // --- 雲端 API 自動讀寫核心 ---
     async function findDriveFile() {
         if (!accessToken) return null;
-        const res = await fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name='${FILE_NAME}'`, {
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
-        const data = await res.json();
-        if (data.files && data.files.length > 0) {
-            driveFileId = data.files[0].id;
-            return driveFileId;
+        try {
+            const res = await fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name='${FILE_NAME}'`, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            if (res.status === 401) {
+                requestDriveAccess();
+                return null;
+            }
+            const data = await res.json();
+            if (data.files && data.files.length > 0) {
+                driveFileId = data.files[0].id;
+                return driveFileId;
+            }
+        } catch (e) {
+            console.error('尋找備份檔失敗:', e);
         }
         return null;
     }
 
-    // 從 Google Drive 下載並合併資料
     async function syncFromDrive() {
         if (!accessToken) return;
         document.getElementById('sync-status').innerText = '同步中...';
@@ -215,12 +216,11 @@
             }
             document.getElementById('sync-status').innerText = '已同步';
         } catch (e) {
-            console.error('Drive 同步失敗:', e);
+            console.error('從雲端下載失敗:', e);
             document.getElementById('sync-status').innerText = '同步失敗';
         }
     }
 
-    // 上傳最新資料到 Google Drive
     async function syncToDrive() {
         localStorage.setItem('my_calendar_db', JSON.stringify(db));
         renderCalendar();
@@ -252,22 +252,37 @@
                 body: formData
             });
 
+            if (res.status === 401) {
+                requestDriveAccess();
+                return;
+            }
+
             const result = await res.json();
             if (result.id) driveFileId = result.id;
             document.getElementById('sync-status').innerText = '已同步';
         } catch (e) {
-            console.error('上傳失敗:', e);
+            console.error('上傳雲端失敗:', e);
             document.getElementById('sync-status').innerText = '上傳失敗';
         }
     }
 
-    // --- UI 與業務邏輯 ---
+    // --- 日曆與介面渲染邏輯 ---
     window.onload = () => {
         initGoogleAuth();
         renderCalendar();
         renderSchedules();
         renderExpenses();
+        if (Notification.permission !== "granted") {
+            Notification.requestPermission();
+        }
     };
+
+    // 自動拉取：切換回頁面時主動更新
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && accessToken) {
+            syncFromDrive();
+        }
+    });
 
     function renderCalendar() {
         const year = currentDate.getFullYear();
@@ -304,6 +319,7 @@
         renderExpenses();
     }
 
+    // --- 行程功能 ---
     function addSchedule() {
         const title = document.getElementById('sch-title').value.trim();
         const startTime = document.getElementById('sch-start').value;
@@ -360,6 +376,7 @@
         });
     }
 
+    // --- 記帳功能 ---
     function addExpense() {
         const amount = parseFloat(document.getElementById('exp-amount').value);
         const note = document.getElementById('exp-note').value.trim();
