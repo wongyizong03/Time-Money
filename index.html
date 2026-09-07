@@ -3,834 +3,296 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>光陰與金 - 單機版</title>
-
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#800020">
-
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="光陰與金">
-    <link rel="apple-touch-icon" href="icon-192.png">
-
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js')
-            .then(() => console.log('PWA Service Worker 註冊成功'))
-            .catch((err) => console.log('Service Worker 註冊失敗:', err));
-        });
-      }
-    </script>
-
+    <title>光陰與金 - Supabase 雲端同步版</title>
+    <!-- 引入 Supabase JS Client (最新 v2 穩定版) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
     <style>
-        :root {
-            --primary-color: #800020;
-            --primary-hover: #5d0017;
-            --primary-light: #fdf2f4;
-            --bg-color: #fcf9f9;
-            --card-bg: #ffffff;
-            --text-color: #2b2627;
-            --text-muted: #6e6567;
-            --border-color: #f0e6e8;
-            --danger-color: #dc2626;
-            --success-color: #16a34a;
-            --warning-color: #d97706;
-            --shadow-sm: 0 2px 4px rgba(128, 0, 32, 0.04);
-            --shadow-md: 0 10px 25px -5px rgba(128, 0, 32, 0.08), 0 8px 10px -6px rgba(128, 0, 32, 0.04);
+        :root { 
+            --primary-color: #800020; 
+            --primary-hover: #5d0017; 
+            --primary-light: #fdf2f4; 
+            --bg-color: #fcf9f9; 
+            --card-bg: #ffffff; 
+            --text-color: #2b2627; 
+            --text-muted: #6e6567; 
+            --border-color: #f0e6e8; 
+            --danger-color: #dc2626; 
+            --success-color: #16a34a; 
+            --shadow-md: 0 10px 25px -5px rgba(128, 0, 32, 0.08); 
         }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-        body { background-color: var(--bg-color); color: var(--text-color); padding: 24px 16px; line-height: 1.5; }
-
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-color); padding: 24px 16px; }
         .container { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-        @media (max-width: 768px) { .container { grid-template-columns: 1fr; } body { padding: 16px 12px; } }
-
-        .card { 
-            background: var(--card-bg); 
-            border-radius: 16px; 
-            padding: 24px; 
-            box-shadow: var(--shadow-md); 
-            border: 1px solid var(--border-color);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
+        @media (max-width: 768px) { .container { grid-template-columns: 1fr; } }
+        .card { background: var(--card-bg); border-radius: 16px; padding: 24px; box-shadow: var(--shadow-md); border: 1px solid var(--border-color); }
         .full-width { grid-column: 1 / -1; }
-
-        h2 { 
-            font-size: 1.2rem; 
-            font-weight: 700;
-            margin-bottom: 18px; 
-            color: var(--primary-color); 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            letter-spacing: 0.5px;
-        }
-        
+        h2 { font-size: 1.2rem; margin-bottom: 18px; color: var(--primary-color); display: flex; justify-content: space-between; align-items: center; }
         .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .calendar-header button { background: var(--primary-light); color: var(--primary-color); border: 1px solid var(--border-color); font-weight: 600; padding: 6px 14px; border-radius: 20px; }
-        .calendar-header button:hover { background: var(--primary-color); color: #fff; }
-        
+        .calendar-header button { background: var(--primary-light); color: var(--primary-color); border: 1px solid var(--border-color); padding: 6px 14px; border-radius: 20px; cursor: pointer; }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; }
         .calendar-day-head { font-weight: 600; padding: 8px 0; color: var(--text-muted); font-size: 0.85rem; }
-        .calendar-day { 
-            padding: 12px 0; 
-            border-radius: 10px; 
-            cursor: pointer; 
-            border: 1px solid transparent; 
-            transition: all 0.2s ease; 
-            font-size: 0.95rem; 
-            position: relative; 
-            font-weight: 500;
-        }
-        .calendar-day:hover:not(.empty) { background-color: var(--primary-light); color: var(--primary-color); }
-        .calendar-day.selected { 
-            background-color: var(--primary-color); 
-            color: white; 
-            font-weight: bold; 
-            box-shadow: 0 4px 12px rgba(128, 0, 32, 0.3);
-        }
+        .calendar-day { padding: 12px 0; border-radius: 10px; cursor: pointer; font-size: 0.95rem; position: relative; font-weight: 500; }
+        .calendar-day:hover:not(.empty) { background-color: var(--primary-light); }
+        .calendar-day.selected { background-color: var(--primary-color); color: white; }
         .calendar-day.empty { cursor: default; }
-        
         .dot-container { display: flex; justify-content: center; gap: 3px; position: absolute; bottom: 4px; left: 0; right: 0; }
         .dot { width: 4px; height: 4px; border-radius: 50%; }
         .dot-schedule { background-color: var(--primary-color); }
         .selected .dot-schedule { background-color: #fff; }
-        .dot-expense { background-color: var(--warning-color); }
-        .selected .dot-expense { background-color: #fde68a; }
-
+        .dot-expense { background-color: #d97706; }
         .form-group { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
-        input, select, button { 
-            padding: 10px 14px; 
-            border: 1px solid var(--border-color); 
-            border-radius: 8px; 
-            font-size: 0.9rem; 
-            outline: none; 
-            transition: all 0.2s;
-            background-color: #fff;
-        }
-        input:focus, select:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(128, 0, 32, 0.1); }
-        
-        button { 
-            background-color: var(--primary-color); 
-            color: white; 
-            border: none; 
-            cursor: pointer; 
-            font-weight: 600; 
-            letter-spacing: 0.3px;
-        }
+        input, select, button { padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.9rem; outline: none; }
+        button { background-color: var(--primary-color); color: white; border: none; cursor: pointer; font-weight: 600; }
         button:hover { background-color: var(--primary-hover); }
         button.danger { background-color: #fee2e2; color: var(--danger-color); padding: 5px 10px; font-size: 0.8rem; }
-        button.danger:hover { background-color: var(--danger-color); color: #fff; }
-        button.secondary { background-color: #f1f5f9; color: #475569; padding: 5px 10px; font-size: 0.8rem; }
-        button.secondary:hover { background-color: #e2e8f0; color: #1e293b; }
-        button.action-btn { padding: 5px 10px; font-size: 0.8rem; border-radius: 6px; }
-        button.cancel-btn { background-color: #e2e8f0; color: #475569; }
-
         .item-list { list-style: none; max-height: 320px; overflow-y: auto; }
-        .item-row { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            padding: 12px 8px; 
-            border-bottom: 1px solid var(--border-color); 
-            font-size: 0.9rem; 
-        }
-        .item-row:last-child { border-bottom: none; }
-        .item-time { color: var(--primary-color); font-size: 0.85rem; margin-right: 8px; font-weight: 600; }
-        .item-location { font-size: 0.8rem; color: var(--text-muted); margin-top: 3px; }
-        
-        .amount-income { color: var(--success-color); font-weight: 700; }
+        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
+        .item-time { color: var(--primary-color); font-weight: 600; margin-right: 8px; }
         .amount-expense { color: var(--danger-color); font-weight: 700; }
-
-        .summary-bar { 
-            display: flex; 
-            justify-content: space-around; 
-            background: var(--primary-light); 
-            padding: 14px; 
-            border-radius: 10px; 
-            margin-top: 18px; 
-            font-weight: 600; 
-            font-size: 0.9rem; 
-            border: 1px solid var(--border-color);
-        }
-        
-        .btn-group { display: flex; gap: 6px; align-items: center; }
-
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.4);
-            display: flex; justify-content: center; align-items: center;
-            z-index: 1000;
-            opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
-        }
-        .modal-overlay.active { opacity: 1; pointer-events: auto; }
-        .modal-card {
-            background: #fff; border-radius: 16px; padding: 24px;
-            width: 90%; max-width: 460px; box-shadow: var(--shadow-md);
-            max-height: 85vh; overflow-y: auto;
-        }
-        .copy-calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; }
-        .copy-day {
-            padding: 10px 0; border-radius: 8px; cursor: pointer; border: 1px solid var(--border-color);
-            font-size: 0.9rem; transition: all 0.15s; font-weight: 500;
-        }
-        .copy-day.selected-copy {
-            background-color: var(--primary-color); color: #fff; border-color: var(--primary-color);
-            box-shadow: 0 2px 8px rgba(128, 0, 32, 0.3);
-        }
-        .copy-day.empty { border: none; cursor: default; }
-
-        .popup-section-title {
-            font-size: 0.95rem; font-weight: 700; color: var(--primary-color);
-            margin: 14px 0 8px 0; padding-bottom: 4px; border-bottom: 2px solid var(--primary-light);
-        }
-
-        .close-icon-btn {
-            background: transparent; color: var(--text-muted); border: none;
-            font-size: 1.2rem; padding: 0 4px; cursor: pointer; line-height: 1;
-        }
-        .close-icon-btn:hover { color: var(--primary-color); background: transparent; }
-
-        .status-tag { font-size: 0.8rem; color: var(--primary-color); font-weight: normal; margin-left: 10px; }
+        .status-tag { font-size: 0.8rem; padding: 2px 8px; border-radius: 12px; font-weight: normal; }
+        .status-online { background: #dcfce7; color: #15803d; }
+        .status-offline { background: #fee2e2; color: #b91c1c; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <!-- 1. 月曆視圖 -->
     <div class="card full-width">
         <div class="calendar-header">
             <button onclick="changeMonth(-1)">&lt; 上個月</button>
-            <h2 id="month-year-display" style="margin:0;"></h2>
+            <h2>
+                <span id="month-year-display"></span>
+                <span id="sync-status" class="status-tag status-offline">連線中...</span>
+            </h2>
             <button onclick="changeMonth(1)">下個月 &gt;</button>
         </div>
         <div class="calendar-grid" id="calendar-grid"></div>
-        
-        <div class="summary-bar" style="margin-top:20px;">
-            <span>本月總收入: <span id="month-income" class="amount-income">$0</span></span>
-            <span>本月總支出: <span id="month-expense" class="amount-expense">$0</span></span>
-            <span>本月淨結餘: <span id="month-balance">$0</span></span>
-        </div>
     </div>
 
-    <!-- 2. 當日日程表 -->
     <div class="card">
-        <h2>
-            <span>📅 光陰規劃 <span class="status-tag">💾 單機儲存模式</span></span>
-            <span id="selected-date-display-1" style="font-size:0.85rem; color:var(--text-muted);"></span>
-        </h2>
-        
+        <h2>📅 雲端行程</h2>
         <div class="form-group">
-            <input type="hidden" id="schedule-edit-id" value="">
-            <input type="time" id="schedule-start-time" required>
-            <span style="align-self: center; color: var(--text-muted);">至</span>
-            <input type="time" id="schedule-end-time" required>
-            <input type="text" id="schedule-title" placeholder="日程名稱 / 活動" style="flex:1;" required>
-            <input type="text" id="schedule-location" placeholder="📍 活動地點 (選填)" style="width: 100%;">
-            <select id="schedule-reminder" style="width: 100%;">
-                <option value="none">🔔 提醒通知：不提醒</option>
-                <option value="1day">提前 1 天提醒</option>
-                <option value="2hours">提前 2 小時提醒</option>
-                <option value="1hour">提前 1 小時提醒</option>
-            </select>
-            <div style="display: flex; gap: 8px; width: 100%; margin-top: 4px;">
-                <button id="schedule-submit-btn" onclick="addOrUpdateSchedule()" style="flex: 1;">新增行程</button>
-                <button id="schedule-cancel-btn" class="cancel-btn" onclick="cancelScheduleEdit()" style="display: none;">取消修改</button>
-            </div>
+            <input type="time" id="sch-time" value="09:00">
+            <input type="text" id="sch-title" placeholder="行程名稱" style="flex:1;">
+            <button onclick="addSchedule()">新增</button>
         </div>
-
-        <ul class="item-list" id="schedule-list"></ul>
+        <ul class="item-list" id="sch-list"></ul>
     </div>
 
-    <!-- 3. 當日收支計算器 -->
     <div class="card">
-        <h2>
-            <span>💰 金錢計算器</span>
-            <span id="selected-date-display-2" style="font-size:0.85rem; color:var(--text-muted);"></span>
-        </h2>
-
+        <h2>💰 雲端記帳</h2>
         <div class="form-group">
-            <input type="hidden" id="expense-edit-id" value="">
-            <input type="time" id="expense-time" required>
-            <select id="expense-type">
-                <option value="expense">支出</option>
-                <option value="income">收入</option>
-            </select>
-            <input type="number" id="expense-amount" placeholder="金額" style="width: 90px;" min="0" step="0.1" required>
-            <input type="text" id="expense-note" placeholder="備註 (如: 午餐)" style="flex:1;">
-            <div style="display: flex; gap: 8px; width: 100%; margin-top: 4px;">
-                <button id="expense-submit-btn" onclick="addOrUpdateExpense()" style="flex: 1;">紀錄</button>
-                <button id="expense-cancel-btn" class="cancel-btn" onclick="cancelExpenseEdit()" style="display: none;">取消修改</button>
-            </div>
+            <input type="number" id="exp-amount" placeholder="金額" style="width:100px;">
+            <input type="text" id="exp-note" placeholder="備註" style="flex:1;">
+            <button onclick="addExpense()">紀錄</button>
         </div>
-
-        <ul class="item-list" id="expense-list"></ul>
-
-        <div class="summary-bar">
-            <span>當日收入: <span id="total-income" class="amount-income">$0</span></span>
-            <span>當日支出: <span id="total-expense" class="amount-expense">$0</span></span>
-            <span>當日結餘: <span id="total-balance">$0</span></span>
-        </div>
-    </div>
-</div>
-
-<!-- Modal 彈出視窗 -->
-<div class="modal-overlay" id="day-detail-modal">
-    <div class="modal-card">
-        <h2>
-            <span id="day-modal-title">📅 當日行程</span>
-            <button class="close-icon-btn" onclick="closeDayDetailModal()">✕</button>
-        </h2>
-
-        <div class="popup-section-title">📅 當日日程</div>
-        <ul class="item-list" id="day-modal-schedule-list"></ul>
-
-        <div class="popup-section-title">💰 當日收支</div>
-        <ul class="item-list" id="day-modal-expense-list"></ul>
-
-        <div style="display: flex; gap: 8px; margin-top: 20px;">
-            <button onclick="scrollToEditSchedule()" style="flex: 1;">+ 新增日程</button>
-            <button onclick="scrollToEditExpense()" style="flex: 1; background-color:#475569;">+ 紀錄收支</button>
-        </div>
-    </div>
-</div>
-
-<div class="modal-overlay" id="copy-modal">
-    <div class="modal-card">
-        <h2>
-            <span>複製行程至多個日期</span>
-            <span style="font-size:0.85rem; font-weight:normal; color:var(--text-muted);" id="copy-target-title"></span>
-        </h2>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">點擊點選欲複製到的日期（可複選）：</p>
-
-        <div class="calendar-header" style="margin-bottom: 10px;">
-            <button onclick="changeCopyMonth(-1)">&lt;</button>
-            <span id="copy-month-display" style="font-weight: 600; color: var(--primary-color);"></span>
-            <button onclick="changeCopyMonth(1)">&gt;</button>
-        </div>
-
-        <div class="copy-calendar-grid" id="copy-calendar-grid"></div>
-
-        <div style="display: flex; gap: 10px; margin-top: 20px;">
-            <button onclick="confirmCopySchedules()" style="flex: 1;">確認複製 (<span id="copy-count">0</span> 天)</button>
-            <button class="cancel-btn" onclick="closeCopyModal()">取消</button>
-        </div>
+        <ul class="item-list" id="exp-list"></ul>
     </div>
 </div>
 
 <script>
-    const STORAGE_KEY = 'time_and_gold_local_db';
+    // ⬇️ 請在下方單引號內填入你的 Data API 網址與 Publishable Key ⬇️
+    const SUPABASE_URL = 'https://cffqcybqnpfnaoaqpikf.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_DWBtSFdn51x6UymNiQb5hw_pspRf6f5'; // 貼上剛複製的 Publishable Key
+    
+    let supabaseClient = null;
     let currentDate = new Date();
     let selectedDateStr = formatDate(new Date());
     let db = { schedules: {}, expenses: {} };
 
-    // 載入 LocalStorage 資料
-    function loadData() {
-        const localData = localStorage.getItem(STORAGE_KEY);
-        if (localData) {
-            try {
-                db = JSON.parse(localData);
-            } catch (e) {
-                db = { schedules: {}, expenses: {} };
-            }
+    function formatDate(date) {
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    }
+
+    function initSupabase() {
+        if (SUPABASE_URL.includes('YOUR_PROJECT_ID') || !SUPABASE_KEY.startsWith('sb_publishable')) {
+            updateStatus(false, '尚未填入 Key');
+            return false;
+        }
+        try {
+            // 初始化 Supabase 客戶端
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            return true;
+        } catch (err) {
+            console.error('Supabase 初始化失敗:', err);
+            updateStatus(false, '初始化失敗');
+            return false;
         }
     }
 
-    // 儲存資料至 LocalStorage
-    function saveData() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
-        renderCalendar();
-        renderSchedules();
-        renderExpenses();
+    function updateStatus(isOnline, text) {
+        const tag = document.getElementById('sync-status');
+        if (isOnline) {
+            tag.className = 'status-tag status-online';
+            tag.innerText = text || '雲端已同步';
+        } else {
+            tag.className = 'status-tag status-offline';
+            tag.innerText = text || '未連線';
+        }
     }
 
-    function formatDate(date) {
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, '0');
-        const d = String(date.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
-    }
+    async function loadCloudData() {
+        if (!supabaseClient && !initSupabase()) return;
 
-    function getCurrentTimeStr() {
-        const now = new Date();
-        return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        try {
+            const { data: schedules, error: schError } = await supabaseClient.from('schedules').select('*');
+            const { data: expenses, error: expError } = await supabaseClient.from('expenses').select('*');
+
+            if (schError || expError) {
+                console.error(schError || expError);
+                updateStatus(false, '資料同步失敗');
+                return;
+            }
+
+            db.schedules = {};
+            db.expenses = {};
+
+            if (schedules) {
+                schedules.forEach(item => {
+                    if (!db.schedules[item.date]) db.schedules[item.date] = [];
+                    db.schedules[item.date].push({
+                        id: item.id, startTime: item.start_time, endTime: item.end_time,
+                        title: item.title, location: item.location, reminder: item.reminder
+                    });
+                });
+            }
+
+            if (expenses) {
+                expenses.forEach(item => {
+                    if (!db.expenses[item.date]) db.expenses[item.date] = [];
+                    db.expenses[item.date].push({
+                        id: item.id, time: item.time, type: item.type,
+                        amount: parseFloat(item.amount), note: item.note
+                    });
+                });
+            }
+
+            updateStatus(true);
+            renderCalendar();
+            renderSchedules();
+            renderExpenses();
+        } catch (err) {
+            console.error(err);
+            updateStatus(false, '連線異常');
+        }
     }
 
     window.onload = () => {
-        loadData();
-        document.getElementById('expense-time').value = getCurrentTimeStr();
-        document.getElementById('schedule-start-time').value = getCurrentTimeStr();
         renderCalendar();
-        selectDate(selectedDateStr, false);
+        loadCloudData();
     };
 
     function renderCalendar() {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
-        
         document.getElementById('month-year-display').innerText = `${year}年 ${month + 1}月`;
         
         const grid = document.getElementById('calendar-grid');
         grid.innerHTML = '';
-
-        const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
-        weekDays.forEach(d => {
-            grid.innerHTML += `<div class="calendar-day-head">${d}</div>`;
-        });
+        ['日', '一', '二', '三', '四', '五', '六'].forEach(d => grid.innerHTML += `<div class="calendar-day-head">${d}</div>`);
 
         const firstDay = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-        for (let i = 0; i < firstDay; i++) {
-            grid.innerHTML += `<div class="calendar-day empty"></div>`;
-        }
-
-        let monthIncome = 0;
-        let monthExpense = 0;
+        for (let i = 0; i < firstDay; i++) grid.innerHTML += `<div class="calendar-day empty"></div>`;
 
         for (let day = 1; day <= daysInMonth; day++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const isSelected = dateStr === selectedDateStr ? 'selected' : '';
-            
-            const hasSchedule = db.schedules && db.schedules[dateStr] && db.schedules[dateStr].length > 0;
-            const hasExpense = db.expenses && db.expenses[dateStr] && db.expenses[dateStr].length > 0;
+            const hasSchedule = db.schedules[dateStr]?.length > 0;
+            const hasExpense = db.expenses[dateStr]?.length > 0;
 
-            if (db.expenses && db.expenses[dateStr]) {
-                db.expenses[dateStr].forEach(item => {
-                    if (item.type === 'income') monthIncome += item.amount;
-                    else monthExpense += item.amount;
-                });
-            }
+            let dots = '<div class="dot-container">';
+            if (hasSchedule) dots += '<span class="dot dot-schedule"></span>';
+            if (hasExpense) dots += '<span class="dot dot-expense"></span>';
+            dots += '</div>';
 
-            let dotsHtml = '<div class="dot-container">';
-            if (hasSchedule) dotsHtml += '<span class="dot dot-schedule"></span>';
-            if (hasExpense) dotsHtml += '<span class="dot dot-expense"></span>';
-            dotsHtml += '</div>';
-
-            grid.innerHTML += `
-                <div class="calendar-day ${isSelected}" onclick="window.selectDate('${dateStr}', true)">
-                    ${day}
-                    ${dotsHtml}
-                </div>`;
+            grid.innerHTML += `<div class="calendar-day ${isSelected}" onclick="selectDate('${dateStr}')">${day}${dots}</div>`;
         }
-
-        document.getElementById('month-income').innerText = `$${monthIncome.toFixed(1)}`;
-        document.getElementById('month-expense').innerText = `$${monthExpense.toFixed(1)}`;
-        const monthBalance = monthIncome - monthExpense;
-        const monthBalEl = document.getElementById('month-balance');
-        monthBalEl.innerText = `$${monthBalance.toFixed(1)}`;
-        monthBalEl.className = monthBalance >= 0 ? 'amount-income' : 'amount-expense';
     }
 
-    window.changeMonth = (delta) => {
-        currentDate.setMonth(currentDate.getMonth() + delta);
-        renderCalendar();
-    };
-
-    window.selectDate = (dateStr, showModal = true) => {
+    function selectDate(dateStr) {
         selectedDateStr = dateStr;
-        cancelScheduleEdit();
-        cancelExpenseEdit();
         renderCalendar();
-        
-        document.getElementById('selected-date-display-1').innerText = `(${dateStr})`;
-        document.getElementById('selected-date-display-2').innerText = `(${dateStr})`;
-
         renderSchedules();
         renderExpenses();
+    }
 
-        if (showModal) {
-            openDayDetailModal(dateStr);
-        }
-    };
+    async function addSchedule() {
+        if (!supabaseClient) return alert('請先設定 API 連線');
+        const title = document.getElementById('sch-title').value.trim();
+        const startTime = document.getElementById('sch-time').value;
+        if (!title || !startTime) return alert('請輸入時間與標題');
 
-    function openDayDetailModal(dateStr) {
-        document.getElementById('day-modal-title').innerText = `📅 ${dateStr} 行程`;
+        const newItem = { id: Date.now(), date: selectedDateStr, start_time: startTime, title: title };
+        const { error } = await supabaseClient.from('schedules').insert([newItem]);
         
-        const scheduleList = document.getElementById('day-modal-schedule-list');
-        scheduleList.innerHTML = '';
-        const schedules = (db.schedules && db.schedules[dateStr]) || [];
-        if (schedules.length === 0) {
-            scheduleList.innerHTML = `<li class="item-row" style="color:var(--text-muted);">無日程紀錄</li>`;
+        if (error) {
+            alert('新增失敗：' + error.message);
         } else {
-            schedules.forEach(item => {
-                scheduleList.innerHTML += `
-                    <li class="item-row">
-                        <div>
-                            <span class="item-time">[${item.startTime}]</span>
-                            <span>${escapeHtml(item.title)}</span>
-                            ${item.location ? `<div class="item-location">📍 ${escapeHtml(item.location)}</div>` : ''}
-                        </div>
-                    </li>`;
-            });
+            document.getElementById('sch-title').value = '';
+            loadCloudData();
         }
-
-        const expenseList = document.getElementById('day-modal-expense-list');
-        expenseList.innerHTML = '';
-        const expenses = (db.expenses && db.expenses[dateStr]) || [];
-        if (expenses.length === 0) {
-            expenseList.innerHTML = `<li class="item-row" style="color:var(--text-muted);">無收支紀錄</li>`;
-        } else {
-            expenses.forEach(item => {
-                const isIncome = item.type === 'income';
-                const amountClass = isIncome ? 'amount-income' : 'amount-expense';
-                const sign = isIncome ? '+' : '-';
-                expenseList.innerHTML += `
-                    <li class="item-row">
-                        <span>${item.time} ${escapeHtml(item.note)}</span>
-                        <span class="${amountClass}">${sign}$${item.amount.toFixed(1)}</span>
-                    </li>`;
-            });
-        }
-
-        document.getElementById('day-detail-modal').classList.add('active');
     }
 
-    window.closeDayDetailModal = () => {
-        document.getElementById('day-detail-modal').classList.remove('active');
-    };
-
-    window.scrollToEditSchedule = () => {
-        closeDayDetailModal();
-        document.getElementById('schedule-title').focus();
-    };
-
-    window.scrollToEditExpense = () => {
-        closeDayDetailModal();
-        document.getElementById('expense-amount').focus();
-    };
-
-    window.addOrUpdateSchedule = () => {
-        const editId = document.getElementById('schedule-edit-id').value;
-        const startTime = document.getElementById('schedule-start-time').value;
-        const endTime = document.getElementById('schedule-end-time').value;
-        const title = document.getElementById('schedule-title').value.trim();
-        const location = document.getElementById('schedule-location').value.trim();
-        const reminder = document.getElementById('schedule-reminder').value;
-
-        if (!startTime || !title) {
-            alert('請填寫開始時間與日程名稱！');
-            return;
-        }
-
-        if (!db.schedules) db.schedules = {};
-        if (!db.schedules[selectedDateStr]) db.schedules[selectedDateStr] = [];
-
-        if (editId) {
-            const index = db.schedules[selectedDateStr].findIndex(item => item.id == editId);
-            if (index !== -1) {
-                db.schedules[selectedDateStr][index] = {
-                    ...db.schedules[selectedDateStr][index],
-                    startTime,
-                    endTime: endTime || startTime,
-                    title,
-                    location,
-                    reminder
-                };
-            }
-        } else {
-            db.schedules[selectedDateStr].push({
-                id: Date.now(),
-                startTime,
-                endTime: endTime || startTime,
-                title,
-                location,
-                reminder
-            });
-        }
-
-        db.schedules[selectedDateStr].sort((a, b) => a.startTime.localeCompare(b.startTime));
-
-        saveData();
-        cancelScheduleEdit();
-    };
-
-    window.editSchedule = (id) => {
-        const items = (db.schedules && db.schedules[selectedDateStr]) || [];
-        const item = items.find(i => i.id === id);
-        if (!item) return;
-
-        document.getElementById('schedule-edit-id').value = item.id;
-        document.getElementById('schedule-start-time').value = item.startTime;
-        document.getElementById('schedule-end-time').value = item.endTime || item.startTime;
-        document.getElementById('schedule-title').value = item.title;
-        document.getElementById('schedule-location').value = item.location || '';
-        document.getElementById('schedule-reminder').value = item.reminder || 'none';
-
-        document.getElementById('schedule-submit-btn').innerText = '儲存修改';
-        document.getElementById('schedule-cancel-btn').style.display = 'block';
-    };
-
-    function cancelScheduleEdit() {
-        document.getElementById('schedule-edit-id').value = '';
-        document.getElementById('schedule-title').value = '';
-        document.getElementById('schedule-location').value = '';
-        document.getElementById('schedule-reminder').value = 'none';
-        document.getElementById('schedule-start-time').value = getCurrentTimeStr();
-        document.getElementById('schedule-end-time').value = '';
-        document.getElementById('schedule-submit-btn').innerText = '新增行程';
-        document.getElementById('schedule-cancel-btn').style.display = 'none';
+    async function deleteSchedule(id) {
+        if (!supabaseClient) return;
+        const { error } = await supabaseClient.from('schedules').delete().eq('id', id);
+        if (error) alert('刪除失敗：' + error.message);
+        else loadCloudData();
     }
-    window.cancelScheduleEdit = cancelScheduleEdit;
-
-    let scheduleToCopy = null;
-    let selectedCopyDates = new Set();
-    let copyCurrentDate = new Date();
-
-    window.openCopyModal = (id) => {
-        const currentItems = (db.schedules && db.schedules[selectedDateStr]) || [];
-        scheduleToCopy = currentItems.find(item => item.id === id);
-        if (!scheduleToCopy) return;
-
-        selectedCopyDates.clear();
-        copyCurrentDate = new Date(currentDate);
-
-        document.getElementById('copy-target-title').innerText = `[${scheduleToCopy.title}]`;
-        document.getElementById('copy-modal').classList.add('active');
-        renderCopyCalendar();
-    };
-
-    window.closeCopyModal = () => {
-        document.getElementById('copy-modal').classList.remove('active');
-        scheduleToCopy = null;
-    };
-
-    window.changeCopyMonth = (delta) => {
-        copyCurrentDate.setMonth(copyCurrentDate.getMonth() + delta);
-        renderCopyCalendar();
-    };
-
-    function renderCopyCalendar() {
-        const year = copyCurrentDate.getFullYear();
-        const month = copyCurrentDate.getMonth();
-
-        document.getElementById('copy-month-display').innerText = `${year}年 ${month + 1}月`;
-
-        const grid = document.getElementById('copy-calendar-grid');
-        grid.innerHTML = '';
-
-        const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
-        weekDays.forEach(d => {
-            grid.innerHTML += `<div class="calendar-day-head">${d}</div>`;
-        });
-
-        const firstDay = new Date(year, month, 1).getDay();
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-        for (let i = 0; i < firstDay; i++) {
-            grid.innerHTML += `<div class="copy-day empty"></div>`;
-        }
-
-        for (let day = 1; day <= daysInMonth; day++) {
-            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const isSelected = selectedCopyDates.has(dateStr) ? 'selected-copy' : '';
-
-            grid.innerHTML += `
-                <div class="copy-day ${isSelected}" onclick="window.toggleCopyDate('${dateStr}')">
-                    ${day}
-                </div>`;
-        }
-
-        document.getElementById('copy-count').innerText = selectedCopyDates.size;
-    }
-
-    window.toggleCopyDate = (dateStr) => {
-        if (selectedCopyDates.has(dateStr)) {
-            selectedCopyDates.delete(dateStr);
-        } else {
-            selectedCopyDates.add(dateStr);
-        }
-        renderCopyCalendar();
-    };
-
-    window.confirmCopySchedules = () => {
-        if (selectedCopyDates.size === 0) {
-            alert('請至少選擇一個日期！');
-            return;
-        }
-
-        selectedCopyDates.forEach(targetDate => {
-            if (!db.schedules) db.schedules = {};
-            if (!db.schedules[targetDate]) db.schedules[targetDate] = [];
-            
-            db.schedules[targetDate].push({
-                ...scheduleToCopy,
-                id: Date.now() + Math.random()
-            });
-
-            db.schedules[targetDate].sort((a, b) => a.startTime.localeCompare(b.startTime));
-        });
-
-        saveData();
-        closeCopyModal();
-        alert(`成功將行程複製到 ${selectedCopyDates.size} 個日期！`);
-    };
-
-    window.deleteSchedule = (id) => {
-        if (db.schedules && db.schedules[selectedDateStr]) {
-            db.schedules[selectedDateStr] = db.schedules[selectedDateStr].filter(item => item.id !== id);
-            saveData();
-        }
-    };
 
     function renderSchedules() {
-        const list = document.getElementById('schedule-list');
+        const list = document.getElementById('sch-list');
         list.innerHTML = '';
-        const items = (db.schedules && db.schedules[selectedDateStr]) || [];
-
-        if (items.length === 0) {
-            list.innerHTML = `<li class="item-row" style="color:var(--text-muted);">當日無日程紀錄</li>`;
-            return;
-        }
-
+        const items = db.schedules[selectedDateStr] || [];
+        if (!items.length) return list.innerHTML = '<li class="item-row">無行程</li>';
         items.forEach(item => {
-            const timeText = item.endTime && item.endTime !== item.startTime 
-                ? `${item.startTime} - ${item.endTime}` 
-                : item.startTime;
-
-            list.innerHTML += `
-                <li class="item-row">
-                    <div>
-                        <div>
-                            <span class="item-time">[${timeText}]</span>
-                            <span>${escapeHtml(item.title)}</span>
-                        </div>
-                        ${item.location ? `<div class="item-location">📍 ${escapeHtml(item.location)}</div>` : ''}
-                    </div>
-                    <div class="btn-group">
-                        <button class="secondary action-btn" onclick="window.editSchedule(${item.id})">修改</button>
-                        <button class="secondary action-btn" onclick="window.openCopyModal(${item.id})">複製</button>
-                        <button class="danger action-btn" onclick="window.deleteSchedule(${item.id})">刪除</button>
-                    </div>
-                </li>
-            `;
+            list.innerHTML += `<li class="item-row"><span><span class="item-time">${item.startTime}</span>${item.title}</span><button class="danger" onclick="deleteSchedule(${item.id})">刪除</button></li>`;
         });
     }
 
-    window.addOrUpdateExpense = () => {
-        const editId = document.getElementById('expense-edit-id').value;
-        const time = document.getElementById('expense-time').value;
-        const type = document.getElementById('expense-type').value;
-        const amount = parseFloat(document.getElementById('expense-amount').value);
-        const note = document.getElementById('expense-note').value.trim();
+    async function addExpense() {
+        if (!supabaseClient) return alert('請先設定 API 連線');
+        const amount = parseFloat(document.getElementById('exp-amount').value);
+        const note = document.getElementById('exp-note').value.trim();
+        if (isNaN(amount)) return alert('請輸入金額');
 
-        if (!time || isNaN(amount) || amount <= 0) {
-            alert('請輸入正確的時間與金額！');
-            return;
-        }
+        const newItem = { id: Date.now(), date: selectedDateStr, time: '12:00', type: 'expense', amount, note: note || '支出' };
+        const { error } = await supabaseClient.from('expenses').insert([newItem]);
 
-        if (!db.expenses) db.expenses = {};
-        if (!db.expenses[selectedDateStr]) db.expenses[selectedDateStr] = [];
-
-        if (editId) {
-            const index = db.expenses[selectedDateStr].findIndex(item => item.id == editId);
-            if (index !== -1) {
-                db.expenses[selectedDateStr][index] = {
-                    ...db.expenses[selectedDateStr][index],
-                    time,
-                    type,
-                    amount,
-                    note: note || (type === 'income' ? '收入' : '支出')
-                };
-            }
+        if (error) {
+            alert('新增失敗：' + error.message);
         } else {
-            db.expenses[selectedDateStr].push({
-                id: Date.now(),
-                time,
-                type,
-                amount,
-                note: note || (type === 'income' ? '收入' : '支出')
-            });
+            document.getElementById('exp-amount').value = '';
+            document.getElementById('exp-note').value = '';
+            loadCloudData();
         }
-
-        db.expenses[selectedDateStr].sort((a, b) => a.time.localeCompare(b.time));
-
-        saveData();
-        cancelExpenseEdit();
-    };
-
-    window.editExpense = (id) => {
-        const items = (db.expenses && db.expenses[selectedDateStr]) || [];
-        const item = items.find(i => i.id === id);
-        if (!item) return;
-
-        document.getElementById('expense-edit-id').value = item.id;
-        document.getElementById('expense-time').value = item.time;
-        document.getElementById('expense-type').value = item.type;
-        document.getElementById('expense-amount').value = item.amount;
-        document.getElementById('expense-note').value = item.note;
-
-        document.getElementById('expense-submit-btn').innerText = '儲存修改';
-        document.getElementById('expense-cancel-btn').style.display = 'block';
-    };
-
-    function cancelExpenseEdit() {
-        document.getElementById('expense-edit-id').value = '';
-        document.getElementById('expense-amount').value = '';
-        document.getElementById('expense-note').value = '';
-        document.getElementById('expense-time').value = getCurrentTimeStr();
-        document.getElementById('expense-type').value = 'expense';
-        document.getElementById('expense-submit-btn').innerText = '紀錄';
-        document.getElementById('expense-cancel-btn').style.display = 'none';
     }
-    window.cancelExpenseEdit = cancelExpenseEdit;
 
-    window.deleteExpense = (id) => {
-        if (db.expenses && db.expenses[selectedDateStr]) {
-            db.expenses[selectedDateStr] = db.expenses[selectedDateStr].filter(item => item.id !== id);
-            saveData();
-        }
-    };
+    async function deleteExpense(id) {
+        if (!supabaseClient) return;
+        const { error } = await supabaseClient.from('expenses').delete().eq('id', id);
+        if (error) alert('刪除失敗：' + error.message);
+        else loadCloudData();
+    }
 
     function renderExpenses() {
-        const list = document.getElementById('expense-list');
+        const list = document.getElementById('exp-list');
         list.innerHTML = '';
-        const items = (db.expenses && db.expenses[selectedDateStr]) || [];
-
-        let totalIncome = 0;
-        let totalExpense = 0;
-
-        if (items.length === 0) {
-            list.innerHTML = `<li class="item-row" style="color:var(--text-muted);">當日無收支紀錄</li>`;
-        } else {
-            items.forEach(item => {
-                if (item.type === 'income') totalIncome += item.amount;
-                else totalExpense += item.amount;
-
-                const isIncome = item.type === 'income';
-                const amountClass = isIncome ? 'amount-income' : 'amount-expense';
-                const sign = isIncome ? '+' : '-';
-
-                list.innerHTML += `
-                    <li class="item-row">
-                        <div>
-                            <span class="item-time">${item.time}</span>
-                            <span>${escapeHtml(item.note)}</span>
-                        </div>
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <span class="${amountClass}">${sign}$${item.amount.toFixed(1)}</span>
-                            <button class="secondary action-btn" onclick="window.editExpense(${item.id})">修改</button>
-                            <button class="danger action-btn" onclick="window.deleteExpense(${item.id})">刪除</button>
-                        </div>
-                    </li>
-                `;
-            });
-        }
-
-        document.getElementById('total-income').innerText = `$${totalIncome.toFixed(1)}`;
-        document.getElementById('total-expense').innerText = `$${totalExpense.toFixed(1)}`;
-        
-        const balance = totalIncome - totalExpense;
-        const balanceEl = document.getElementById('total-balance');
-        balanceEl.innerText = `$${balance.toFixed(1)}`;
-        balanceEl.className = balance >= 0 ? 'amount-income' : 'amount-expense';
+        const items = db.expenses[selectedDateStr] || [];
+        if (!items.length) return list.innerHTML = '<li class="item-row">無記帳</li>';
+        items.forEach(item => {
+            list.innerHTML += `<li class="item-row"><span>${item.note}</span><div><span class="amount-expense">-$${item.amount}</span> <button class="danger" onclick="deleteExpense(${item.id})">刪除</button></div></li>`;
+        });
     }
 
-    function escapeHtml(text) {
-        return text.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
+    function changeMonth(delta) { 
+        currentDate.setMonth(currentDate.getMonth() + delta); 
+        renderCalendar(); 
     }
 </script>
 
+</body>
+</html>
 </body>
 </html>
