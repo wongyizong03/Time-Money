@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>光陰與金 - 多使用者雲端版</title>
+    <title>光陰與金 - 單機版</title>
 
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#800020">
@@ -42,34 +42,6 @@
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
         body { background-color: var(--bg-color); color: var(--text-color); padding: 24px 16px; line-height: 1.5; }
-        
-        /* 登入遮罩視圖 */
-        .login-overlay {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(253, 242, 244, 0.95);
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            z-index: 2000;
-        }
-        .login-card {
-            background: #fff; border-radius: 16px; padding: 32px;
-            box-shadow: var(--shadow-md); border: 1px solid var(--border-color);
-            text-align: center; max-width: 360px; width: 90%;
-        }
-        .google-btn {
-            background-color: #fff; color: #757575; border: 1px solid #dadce0;
-            padding: 10px 16px; border-radius: 8px; font-weight: 600; font-size: 0.95rem;
-            display: flex; align-items: center; justify-content: center; gap: 10px;
-            cursor: pointer; margin-top: 20px; width: 100%; transition: background-color 0.2s;
-        }
-        .google-btn:hover { background-color: #f8f9fa; }
-
-        .auth-bar {
-            display: flex; justify-content: space-between; align-items: center;
-            background: #fff; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px;
-            border: 1px solid var(--border-color); box-shadow: var(--shadow-sm);
-        }
-        .user-info { font-size: 0.9rem; font-weight: 600; color: var(--primary-color); display: flex; align-items: center; gap: 8px; }
-        .user-avatar { width: 28px; height: 28px; border-radius: 50%; }
 
         .container { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
         @media (max-width: 768px) { .container { grid-template-columns: 1fr; } body { padding: 16px 12px; } }
@@ -220,32 +192,12 @@
         }
         .close-icon-btn:hover { color: var(--primary-color); background: transparent; }
 
-        .sync-status { font-size: 0.8rem; color: var(--success-color); font-weight: normal; margin-left: 10px; }
+        .status-tag { font-size: 0.8rem; color: var(--primary-color); font-weight: normal; margin-left: 10px; }
     </style>
 </head>
 <body>
 
-<!-- 登入視窗 -->
-<div class="login-overlay" id="login-overlay">
-    <div class="login-card">
-        <h1 style="color: var(--primary-color); font-size: 1.5rem; margin-bottom: 8px;">光陰與金</h1>
-        <p style="color: var(--text-muted); font-size: 0.9rem;">個人的跨裝置日曆與記帳助手</p>
-        <button class="google-btn" onclick="window.loginWithGoogle()">
-            <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
-            使用 Google 帳號登入
-        </button>
-    </div>
-</div>
-
-<div class="container" style="margin-top: 10px;">
-    <!-- 用戶頂欄 -->
-    <div class="full-width auth-bar">
-        <div class="user-info" id="user-display">
-            <span>未登入</span>
-        </div>
-        <button class="secondary" onclick="window.logoutGoogle()">登出</button>
-    </div>
-
+<div class="container">
     <!-- 1. 月曆視圖 -->
     <div class="card full-width">
         <div class="calendar-header">
@@ -265,7 +217,7 @@
     <!-- 2. 當日日程表 -->
     <div class="card">
         <h2>
-            <span>📅 光陰規劃 <span id="sync-status" class="sync-status">☁️ 雲端同步中</span></span>
+            <span>📅 光陰規劃 <span class="status-tag">💾 單機儲存模式</span></span>
             <span id="selected-date-display-1" style="font-size:0.85rem; color:var(--text-muted);"></span>
         </h2>
         
@@ -367,87 +319,30 @@
     </div>
 </div>
 
-<!-- 載入 Firebase SDK -->
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-    // ⚠️ 替換為你的 Firebase Config 資訊
-    const firebaseConfig = {
-        apiKey: "AIzaSyDztjcQ0mZpeS5NOf8ayaTYLiR-WM7nc4Q",
-        authDomain: "timemoney-a2ea0.firebaseapp.com",
-        projectId: "timemoney-a2ea0",
-        storageBucket: "timemoney-a2ea0.firebasestorage.app",
-        messagingSenderId: "769005780748",
-        appId: "1:769005780748:web:ac5a0dc88b530ab7df1329",
-        measurementId: "G-D27649S8Z7"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const dbCloud = getFirestore(app);
-
-    let currentUser = null;
-    let docRef = null;
-    let unsubscribeSync = null;
-
+<script>
+    const STORAGE_KEY = 'time_and_gold_local_db';
     let currentDate = new Date();
     let selectedDateStr = formatDate(new Date());
     let db = { schedules: {}, expenses: {} };
 
-    // 處理重定向結果
-    getRedirectResult(auth).catch(err => {
-        if (err.code) alert("登入失敗: " + err.message);
-    });
-
-    // 登入驗證狀態變更監聽
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            currentUser = user;
-            document.getElementById('login-overlay').style.display = 'none';
-            document.getElementById('user-display').innerHTML = `
-                <img class="user-avatar" src="${user.photoURL || ''}" alt="Avatar">
-                <span>${escapeHtml(user.displayName || user.email)}</span>
-            `;
-
-            docRef = doc(dbCloud, "users_data", user.uid);
-            
-            if (unsubscribeSync) unsubscribeSync();
-            unsubscribeSync = onSnapshot(docRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    db = docSnap.data();
-                } else {
-                    db = { schedules: {}, expenses: {} };
-                }
-                renderCalendar();
-                renderSchedules();
-                renderExpenses();
-                document.getElementById('sync-status').innerText = '☁️ 雲端已同步';
-            });
-
-        } else {
-            currentUser = null;
-            document.getElementById('login-overlay').style.display = 'flex';
-            if (unsubscribeSync) unsubscribeSync();
+    // 載入 LocalStorage 資料
+    function loadData() {
+        const localData = localStorage.getItem(STORAGE_KEY);
+        if (localData) {
+            try {
+                db = JSON.parse(localData);
+            } catch (e) {
+                db = { schedules: {}, expenses: {} };
+            }
         }
-    });
+    }
 
-    // 使用 Redirect 方式進行登入
-    window.loginWithGoogle = () => {
-        const provider = new GoogleAuthProvider();
-        signInWithRedirect(auth, provider);
-    };
-
-    window.logoutGoogle = () => {
-        signOut(auth);
-    };
-
-    async function saveData() {
-        if (!docRef) return;
-        document.getElementById('sync-status').innerText = '⏳ 儲存中...';
-        await setDoc(docRef, db);
-        document.getElementById('sync-status').innerText = '☁️ 雲端已同步';
+    // 儲存資料至 LocalStorage
+    function saveData() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+        renderCalendar();
+        renderSchedules();
+        renderExpenses();
     }
 
     function formatDate(date) {
@@ -463,6 +358,7 @@
     }
 
     window.onload = () => {
+        loadData();
         document.getElementById('expense-time').value = getCurrentTimeStr();
         document.getElementById('schedule-start-time').value = getCurrentTimeStr();
         renderCalendar();
@@ -605,7 +501,7 @@
         document.getElementById('expense-amount').focus();
     };
 
-    window.addOrUpdateSchedule = async () => {
+    window.addOrUpdateSchedule = () => {
         const editId = document.getElementById('schedule-edit-id').value;
         const startTime = document.getElementById('schedule-start-time').value;
         const endTime = document.getElementById('schedule-end-time').value;
@@ -646,7 +542,7 @@
 
         db.schedules[selectedDateStr].sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-        await saveData();
+        saveData();
         cancelScheduleEdit();
     };
 
@@ -748,7 +644,7 @@
         renderCopyCalendar();
     };
 
-    window.confirmCopySchedules = async () => {
+    window.confirmCopySchedules = () => {
         if (selectedCopyDates.size === 0) {
             alert('請至少選擇一個日期！');
             return;
@@ -766,15 +662,15 @@
             db.schedules[targetDate].sort((a, b) => a.startTime.localeCompare(b.startTime));
         });
 
-        await saveData();
+        saveData();
         closeCopyModal();
         alert(`成功將行程複製到 ${selectedCopyDates.size} 個日期！`);
     };
 
-    window.deleteSchedule = async (id) => {
+    window.deleteSchedule = (id) => {
         if (db.schedules && db.schedules[selectedDateStr]) {
             db.schedules[selectedDateStr] = db.schedules[selectedDateStr].filter(item => item.id !== id);
-            await saveData();
+            saveData();
         }
     };
 
@@ -792,7 +688,7 @@
             const timeText = item.endTime && item.endTime !== item.startTime 
                 ? `${item.startTime} - ${item.endTime}` 
                 : item.startTime;
-                
+
             list.innerHTML += `
                 <li class="item-row">
                     <div>
@@ -812,7 +708,7 @@
         });
     }
 
-    window.addOrUpdateExpense = async () => {
+    window.addOrUpdateExpense = () => {
         const editId = document.getElementById('expense-edit-id').value;
         const time = document.getElementById('expense-time').value;
         const type = document.getElementById('expense-type').value;
@@ -850,7 +746,7 @@
 
         db.expenses[selectedDateStr].sort((a, b) => a.time.localeCompare(b.time));
 
-        await saveData();
+        saveData();
         cancelExpenseEdit();
     };
 
@@ -880,10 +776,10 @@
     }
     window.cancelExpenseEdit = cancelExpenseEdit;
 
-    window.deleteExpense = async (id) => {
+    window.deleteExpense = (id) => {
         if (db.expenses && db.expenses[selectedDateStr]) {
             db.expenses[selectedDateStr] = db.expenses[selectedDateStr].filter(item => item.id !== id);
-            await saveData();
+            saveData();
         }
     };
 
