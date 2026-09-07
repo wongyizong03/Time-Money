@@ -7,7 +7,7 @@
 
     <!-- PWA Manifest 與主題顏色 -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#2563eb">
+    <meta name="theme-color" content="#800020">
 
     <!-- iOS Apple 專用設定 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -28,68 +28,143 @@
 
     <style>
         :root {
-            --primary-color: #2563eb;
-            --bg-color: #f8fafc;
+            --primary-color: #800020;
+            --primary-hover: #5d0017;
+            --primary-light: #fdf2f4;
+            --bg-color: #fcf9f9;
             --card-bg: #ffffff;
-            --text-color: #1e293b;
-            --border-color: #e2e8f0;
-            --danger-color: #ef4444;
-            --success-color: #10b981;
-            --warning-color: #f59e0b;
+            --text-color: #2b2627;
+            --text-muted: #6e6567;
+            --border-color: #f0e6e8;
+            --danger-color: #dc2626;
+            --success-color: #16a34a;
+            --warning-color: #d97706;
+            --shadow-sm: 0 2px 4px rgba(128, 0, 32, 0.04);
+            --shadow-md: 0 10px 25px -5px rgba(128, 0, 32, 0.08), 0 8px 10px -6px rgba(128, 0, 32, 0.04);
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background-color: var(--bg-color); color: var(--text-color); padding: 20px; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-color); padding: 24px 16px; line-height: 1.5; }
         
-        .container { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        @media (max-width: 768px) { .container { grid-template-columns: 1fr; } }
+        .container { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        @media (max-width: 768px) { .container { grid-template-columns: 1fr; } body { padding: 16px 12px; } }
 
-        .card { background: var(--card-bg); border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid var(--border-color); }
+        .card { 
+            background: var(--card-bg); 
+            border-radius: 16px; 
+            padding: 24px; 
+            box-shadow: var(--shadow-md); 
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
         .full-width { grid-column: 1 / -1; }
 
-        h2 { font-size: 1.25rem; margin-bottom: 15px; color: var(--primary-color); display: flex; justify-content: space-between; align-items: center; }
+        h2 { 
+            font-size: 1.2rem; 
+            font-weight: 700;
+            margin-bottom: 18px; 
+            color: var(--primary-color); 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            letter-spacing: 0.5px;
+        }
         
-        /* 日曆樣式 */
-        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; }
-        .calendar-day-head { font-weight: bold; padding: 8px 0; color: #64748b; font-size: 0.9rem; }
-        .calendar-day { padding: 10px 0; border-radius: 8px; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; font-size: 0.95rem; position: relative; }
-        .calendar-day:hover { background-color: #eff6ff; }
-        .calendar-day.selected { background-color: var(--primary-color); color: white; font-weight: bold; }
+        /* 月曆樣式美化 */
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .calendar-header button { background: var(--primary-light); color: var(--primary-color); border: 1px solid var(--border-color); font-weight: 600; padding: 6px 14px; border-radius: 20px; }
+        .calendar-header button:hover { background: var(--primary-color); color: #fff; }
+        
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; }
+        .calendar-day-head { font-weight: 600; padding: 8px 0; color: var(--text-muted); font-size: 0.85rem; }
+        .calendar-day { 
+            padding: 12px 0; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            border: 1px solid transparent; 
+            transition: all 0.2s ease; 
+            font-size: 0.95rem; 
+            position: relative; 
+            font-weight: 500;
+        }
+        .calendar-day:hover:not(.empty) { background-color: var(--primary-light); color: var(--primary-color); }
+        .calendar-day.selected { 
+            background-color: var(--primary-color); 
+            color: white; 
+            font-weight: bold; 
+            box-shadow: 0 4px 12px rgba(128, 0, 32, 0.3);
+        }
         .calendar-day.empty { cursor: default; }
         
-        /* 日曆小點標記 */
-        .dot-container { display: flex; justify-content: center; gap: 3px; position: absolute; bottom: 3px; left: 0; right: 0; }
+        /* 標記小圓點 */
+        .dot-container { display: flex; justify-content: center; gap: 3px; position: absolute; bottom: 4px; left: 0; right: 0; }
         .dot { width: 4px; height: 4px; border-radius: 50%; }
-        .dot-schedule { background-color: #3b82f6; }
-        .dot-expense { background-color: #ef4444; }
+        .dot-schedule { background-color: var(--primary-color); }
+        .selected .dot-schedule { background-color: #fff; }
+        .dot-expense { background-color: var(--warning-color); }
+        .selected .dot-expense { background-color: #fde68a; }
 
-        /* 表單與輸入框 */
-        .form-group { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-        input, select, button { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.9rem; outline: none; }
-        input:focus, select:focus { border-color: var(--primary-color); }
-        button { background-color: var(--primary-color); color: white; border: none; cursor: pointer; font-weight: 500; }
-        button:hover { opacity: 0.9; }
-        button.danger { background-color: var(--danger-color); padding: 4px 8px; font-size: 0.8rem; }
-        button.secondary { background-color: #64748b; padding: 4px 8px; font-size: 0.8rem; }
-        button.action-btn { padding: 4px 8px; font-size: 0.8rem; }
-        button.cancel-btn { background-color: #94a3b8; }
-
-        /* 列表樣式 */
-        .item-list { list-style: none; max-height: 300px; overflow-y: auto; }
-        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
-        .item-row:last-child { border-bottom: none; }
-        .item-time { color: #64748b; font-size: 0.85rem; margin-right: 8px; font-weight: 500; }
-        .item-location { font-size: 0.8rem; color: #475569; margin-top: 2px; }
-        .item-remind { font-size: 0.75rem; color: var(--warning-color); margin-top: 2px; }
+        /* 表單與輸入元件 */
+        .form-group { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+        input, select, button { 
+            padding: 10px 14px; 
+            border: 1px solid var(--border-color); 
+            border-radius: 8px; 
+            font-size: 0.9rem; 
+            outline: none; 
+            transition: all 0.2s;
+            background-color: #fff;
+        }
+        input:focus, select:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(128, 0, 32, 0.1); }
         
-        .amount-income { color: var(--success-color); font-weight: bold; }
-        .amount-expense { color: var(--danger-color); font-weight: bold; }
+        button { 
+            background-color: var(--primary-color); 
+            color: white; 
+            border: none; 
+            cursor: pointer; 
+            font-weight: 600; 
+            letter-spacing: 0.3px;
+        }
+        button:hover { background-color: var(--primary-hover); }
+        button.danger { background-color: #fee2e2; color: var(--danger-color); padding: 5px 10px; font-size: 0.8rem; }
+        button.danger:hover { background-color: var(--danger-color); color: #fff; }
+        button.secondary { background-color: #f1f5f9; color: #475569; padding: 5px 10px; font-size: 0.8rem; }
+        button.secondary:hover { background-color: #e2e8f0; color: #1e293b; }
+        button.action-btn { padding: 5px 10px; font-size: 0.8rem; border-radius: 6px; }
+        button.cancel-btn { background-color: #e2e8f0; color: #475569; }
+
+        /* 項目列表 */
+        .item-list { list-style: none; max-height: 320px; overflow-y: auto; }
+        .item-row { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 12px 8px; 
+            border-bottom: 1px solid var(--border-color); 
+            font-size: 0.9rem; 
+        }
+        .item-row:last-child { border-bottom: none; }
+        .item-time { color: var(--primary-color); font-size: 0.85rem; margin-right: 8px; font-weight: 600; }
+        .item-location { font-size: 0.8rem; color: var(--text-muted); margin-top: 3px; }
+        .item-remind { font-size: 0.75rem; color: var(--warning-color); margin-top: 2px; font-weight: 500; }
+        
+        .amount-income { color: var(--success-color); font-weight: 700; }
+        .amount-expense { color: var(--danger-color); font-weight: 700; }
 
         /* 統計列 */
-        .summary-bar { display: flex; justify-content: space-around; background: #f1f5f9; padding: 12px; border-radius: 8px; margin-top: 15px; font-weight: bold; font-size: 0.95rem; }
+        .summary-bar { 
+            display: flex; 
+            justify-content: space-around; 
+            background: var(--primary-light); 
+            padding: 14px; 
+            border-radius: 10px; 
+            margin-top: 18px; 
+            font-weight: 600; 
+            font-size: 0.9rem; 
+            border: 1px solid var(--border-color);
+        }
         
-        .btn-group { display: flex; gap: 4px; align-items: center; }
+        .btn-group { display: flex; gap: 6px; align-items: center; }
     </style>
 </head>
 <body>
@@ -105,24 +180,24 @@
         <div class="calendar-grid" id="calendar-grid"></div>
         
         <!-- 當月總統計 -->
-        <div class="summary-bar" style="margin-top:20px; background:#e2e8f0;">
+        <div class="summary-bar" style="margin-top:20px;">
             <span>本月總收入: <span id="month-income" class="amount-income">$0</span></span>
             <span>本月總支出: <span id="month-expense" class="amount-expense">$0</span></span>
             <span>本月淨結餘: <span id="month-balance">$0</span></span>
         </div>
     </div>
 
-    <!-- 2. 當日日程表 (含新增與修改功能) -->
+    <!-- 2. 當日日程表 -->
     <div class="card">
         <h2>
             <span>📅 光陰規劃</span>
-            <span id="selected-date-display-1" style="font-size:0.9rem; color:#64748b;"></span>
+            <span id="selected-date-display-1" style="font-size:0.85rem; color:var(--text-muted);"></span>
         </h2>
         
         <div class="form-group">
             <input type="hidden" id="schedule-edit-id" value="">
             <input type="time" id="schedule-start-time" required>
-            <span>至</span>
+            <span style="align-self: center; color: var(--text-muted);">至</span>
             <input type="time" id="schedule-end-time" required>
             <input type="text" id="schedule-title" placeholder="日程名稱 / 活動" style="flex:1;" required>
             <input type="text" id="schedule-location" placeholder="📍 活動地點 (選填)" style="width: 100%;">
@@ -141,11 +216,11 @@
         <ul class="item-list" id="schedule-list"></ul>
     </div>
 
-    <!-- 3. 當日收支計算器 (含新增與修改功能) -->
+    <!-- 3. 當日收支計算器 -->
     <div class="card">
         <h2>
             <span>💰 金錢計算器</span>
-            <span id="selected-date-display-2" style="font-size:0.9rem; color:#64748b;"></span>
+            <span id="selected-date-display-2" style="font-size:0.85rem; color:var(--text-muted);"></span>
         </h2>
 
         <div class="form-group">
@@ -155,7 +230,7 @@
                 <option value="expense">支出</option>
                 <option value="income">收入</option>
             </select>
-            <input type="number" id="expense-amount" placeholder="金額" style="width: 80px;" min="0" step="0.1" required>
+            <input type="number" id="expense-amount" placeholder="金額" style="width: 90px;" min="0" step="0.1" required>
             <input type="text" id="expense-note" placeholder="備註 (如: 午餐)" style="flex:1;">
             <div style="display: flex; gap: 8px; width: 100%; margin-top: 4px;">
                 <button id="expense-submit-btn" onclick="addOrUpdateExpense()" style="flex: 1;">紀錄</button>
@@ -293,7 +368,6 @@
         renderExpenses();
     }
 
-    // 2. 日程表邏輯 (新增與修改)
     function addOrUpdateSchedule() {
         const editId = document.getElementById('schedule-edit-id').value;
         const startTime = document.getElementById('schedule-start-time').value;
@@ -310,7 +384,6 @@
         if (!db.schedules[selectedDateStr]) db.schedules[selectedDateStr] = [];
 
         if (editId) {
-            // 修改現有行程
             const index = db.schedules[selectedDateStr].findIndex(item => item.id == editId);
             if (index !== -1) {
                 db.schedules[selectedDateStr][index] = {
@@ -324,7 +397,6 @@
                 };
             }
         } else {
-            // 新增行程
             db.schedules[selectedDateStr].push({
                 id: Date.now(),
                 startTime,
@@ -419,7 +491,7 @@
         const items = db.schedules[selectedDateStr] || [];
 
         if (items.length === 0) {
-            list.innerHTML = `<li class="item-row" style="color:#94a3b8;">當日無日程紀錄</li>`;
+            list.innerHTML = `<li class="item-row" style="color:var(--text-muted);">當日無日程紀錄</li>`;
             return;
         }
 
@@ -482,7 +554,6 @@
         }
     }
 
-    // 3. 收支計算器邏輯 (新增與修改)
     function addOrUpdateExpense() {
         const editId = document.getElementById('expense-edit-id').value;
         const time = document.getElementById('expense-time').value;
@@ -498,7 +569,6 @@
         if (!db.expenses[selectedDateStr]) db.expenses[selectedDateStr] = [];
 
         if (editId) {
-            // 修改現有紀錄
             const index = db.expenses[selectedDateStr].findIndex(item => item.id == editId);
             if (index !== -1) {
                 db.expenses[selectedDateStr][index] = {
@@ -510,7 +580,6 @@
                 };
             }
         } else {
-            // 新增紀錄
             db.expenses[selectedDateStr].push({
                 id: Date.now(),
                 time,
@@ -569,7 +638,7 @@
         let totalExpense = 0;
 
         if (items.length === 0) {
-            list.innerHTML = `<li class="item-row" style="color:#94a3b8;">當日無收支紀錄</li>`;
+            list.innerHTML = `<li class="item-row" style="color:var(--text-muted);">當日無收支紀錄</li>`;
         } else {
             items.forEach(item => {
                 if (item.type === 'income') totalIncome += item.amount;
