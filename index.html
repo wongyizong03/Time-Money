@@ -370,7 +370,7 @@
 <!-- 載入 Firebase SDK -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     // ⚠️ 替換為你的 Firebase Config 資訊
@@ -396,6 +396,11 @@
     let selectedDateStr = formatDate(new Date());
     let db = { schedules: {}, expenses: {} };
 
+    // 處理重定向結果
+    getRedirectResult(auth).catch(err => {
+        if (err.code) alert("登入失敗: " + err.message);
+    });
+
     // 登入驗證狀態變更監聽
     onAuthStateChanged(auth, (user) => {
         if (user) {
@@ -406,10 +411,8 @@
                 <span>${escapeHtml(user.displayName || user.email)}</span>
             `;
 
-            // 為每個用戶建立獨一無二的資料路徑
             docRef = doc(dbCloud, "users_data", user.uid);
             
-            // 開啟個人雲端實時同步
             if (unsubscribeSync) unsubscribeSync();
             unsubscribeSync = onSnapshot(docRef, (docSnap) => {
                 if (docSnap.exists()) {
@@ -430,9 +433,10 @@
         }
     });
 
+    // 使用 Redirect 方式進行登入
     window.loginWithGoogle = () => {
         const provider = new GoogleAuthProvider();
-        signInWithPopup(auth, provider).catch(err => alert("登入失敗: " + err.message));
+        signInWithRedirect(auth, provider);
     };
 
     window.logoutGoogle = () => {
