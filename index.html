@@ -166,7 +166,7 @@
         
         .btn-group { display: flex; gap: 6px; align-items: center; }
 
-        /* 彈出視窗 Modal 樣式 */
+        /* 通用 Modal 彈出視窗樣式 */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.4);
@@ -177,7 +177,8 @@
         .modal-overlay.active { opacity: 1; pointer-events: auto; }
         .modal-card {
             background: #fff; border-radius: 16px; padding: 24px;
-            width: 90%; max-width: 440px; box-shadow: var(--shadow-md);
+            width: 90%; max-width: 460px; box-shadow: var(--shadow-md);
+            max-height: 85vh; overflow-y: auto;
         }
         .copy-calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; }
         .copy-day {
@@ -189,6 +190,11 @@
             box-shadow: 0 2px 8px rgba(128, 0, 32, 0.3);
         }
         .copy-day.empty { border: none; cursor: default; }
+
+        .popup-section-title {
+            font-size: 0.95rem; font-weight: 700; color: var(--primary-color);
+            margin: 14px 0 8px 0; padding-bottom: 4px; border-bottom: 2px solid var(--primary-light);
+        }
     </style>
 </head>
 <body>
@@ -199,7 +205,10 @@
         <div class="calendar-header">
             <button onclick="changeMonth(-1)">&lt; 上個月</button>
             <h2 id="month-year-display" style="margin:0;"></h2>
-            <button onclick="changeMonth(1)">下個月 &gt;</button>
+            <div style="display:flex; gap:8px;">
+                <button onclick="pushThreeDaysNotification()">🔔 發送近3日行程通知</button>
+                <button onclick="changeMonth(1)">下個月 &gt;</button>
+            </div>
         </div>
         <div class="calendar-grid" id="calendar-grid"></div>
         
@@ -273,7 +282,28 @@
     </div>
 </div>
 
-<!-- 4. 多選複製行程 Modal -->
+<!-- 4. 點擊日期自動彈出「當天行程與明細 Modal」 -->
+<div class="modal-overlay" id="day-detail-modal">
+    <div class="modal-card">
+        <h2>
+            <span id="day-modal-title">📅 當日行程摘要</span>
+            <button class="cancel-btn action-btn" onclick="closeDayDetailModal()">✕ 關閉</button>
+        </h2>
+
+        <div class="popup-section-title">📅 當日日程</div>
+        <ul class="item-list" id="day-modal-schedule-list"></ul>
+
+        <div class="popup-section-title">💰 當日收支</div>
+        <ul class="item-list" id="day-modal-expense-list"></ul>
+
+        <div style="display: flex; gap: 8px; margin-top: 20px;">
+            <button onclick="scrollToEditSchedule()" style="flex: 1;">+ 新增日程</button>
+            <button onclick="scrollToEditExpense()" style="flex: 1; background-color:#475569;">+ 紀錄收支</button>
+        </div>
+    </div>
+</div>
+
+<!-- 5. 多選複製行程 Modal -->
 <div class="modal-overlay" id="copy-modal">
     <div class="modal-card">
         <h2>
@@ -328,7 +358,7 @@
         document.getElementById('schedule-start-time').value = getCurrentTimeStr();
         requestNotificationPermission();
         renderCalendar();
-        selectDate(selectedDateStr);
+        selectDate(selectedDateStr, false);
         
         setInterval(checkReminders, 60000);
         checkReminders();
@@ -384,7 +414,7 @@
             dotsHtml += '</div>';
 
             grid.innerHTML += `
-                <div class="calendar-day ${isSelected}" onclick="selectDate('${dateStr}')">
+                <div class="calendar-day ${isSelected}" onclick="selectDate('${dateStr}', true)">
                     ${day}
                     ${dotsHtml}
                 </div>`;
@@ -403,7 +433,8 @@
         renderCalendar();
     }
 
-    function selectDate(dateStr) {
+    /* 點擊日期：切換並顯示詳情 modal */
+    function selectDate(dateStr, showModal = true) {
         selectedDateStr = dateStr;
         cancelScheduleEdit();
         cancelExpenseEdit();
@@ -414,6 +445,94 @@
 
         renderSchedules();
         renderExpenses();
+
+        if (showModal) {
+            openDayDetailModal(dateStr);
+        }
+    }
+
+    /* ---- 當日詳情 Modal 邏輯 ---- */
+    function openDayDetailModal(dateStr) {
+        document.getElementById('day-modal-title').innerText = `📅 ${dateStr} 行程與明細`;
+        
+        // 渲染 Modal 內的行程
+        const scheduleList = document.getElementById('day-modal-schedule-list');
+        scheduleList.innerHTML = '';
+        const schedules = db.schedules[dateStr] || [];
+        if (schedules.length === 0) {
+            scheduleList.innerHTML = `<li class="item-row" style="color:var(--text-muted);">無日程紀錄</li>`;
+        } else {
+            schedules.forEach(item => {
+                scheduleList.innerHTML += `
+                    <li class="item-row">
+                        <div>
+                            <span class="item-time">[${item.startTime}]</span>
+                            <span>${escapeHtml(item.title)}</span>
+                            ${item.location ? `<div class="item-location">📍 ${escapeHtml(item.location)}</div>` : ''}
+                        </div>
+                    </li>`;
+            });
+        }
+
+        // 渲染 Modal 內的金額
+        const expenseList = document.getElementById('day-modal-expense-list');
+        expenseList.innerHTML = '';
+        const expenses = db.expenses[dateStr] || [];
+        if (expenses.length === 0) {
+            expenseList.innerHTML = `<li class="item-row" style="color:var(--text-muted);">無收支紀錄</li>`;
+        } else {
+            expenses.forEach(item => {
+                const isIncome = item.type === 'income';
+                const amountClass = isIncome ? 'amount-income' : 'amount-expense';
+                const sign = isIncome ? '+' : '-';
+                expenseList.innerHTML += `
+                    <li class="item-row">
+                        <span>${item.time} ${escapeHtml(item.note)}</span>
+                        <span class="${amountClass}">${sign}$${item.amount.toFixed(1)}</span>
+                    </li>`;
+            });
+        }
+
+        document.getElementById('day-detail-modal').classList.add('active');
+    }
+
+    function closeDayDetailModal() {
+        document.getElementById('day-detail-modal').classList.remove('active');
+    }
+
+    function scrollToEditSchedule() {
+        closeDayDetailModal();
+        document.getElementById('schedule-title').focus();
+    }
+
+    function scrollToEditExpense() {
+        closeDayDetailModal();
+        document.getElementById('expense-amount').focus();
+    }
+
+    /* ---- 發送近 3 日行程推播通知 ---- */
+    function pushThreeDaysNotification() {
+        const today = new Date();
+        let messageArr = [];
+
+        for (let i = 0; i < 3; i++) {
+            let targetDate = new Date();
+            targetDate.setDate(today.getDate() + i);
+            let dateStr = formatDate(targetDate);
+            
+            let label = i === 0 ? '【本日】' : i === 1 ? '【明日】' : '【後日】';
+            let daySchedules = db.schedules[dateStr] || [];
+
+            if (daySchedules.length > 0) {
+                let itemsText = daySchedules.map(s => `${s.startTime} ${s.title}`).join(', ');
+                messageArr.push(`${label} ${dateStr}: ${itemsText}`);
+            } else {
+                messageArr.push(`${label} ${dateStr}: 無行程`);
+            }
+        }
+
+        let fullContent = messageArr.join('\n');
+        showNotification('📌 近 3 日行程總覽', fullContent);
     }
 
     function addOrUpdateSchedule() {
@@ -794,6 +913,9 @@
         return text.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
     }
 </script>
+
+</body>
+</html>
 
 </body>
 </html>
