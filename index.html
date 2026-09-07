@@ -219,10 +219,7 @@
         <div class="calendar-header">
             <button onclick="changeMonth(-1)">&lt; 上個月</button>
             <h2 id="month-year-display" style="margin:0;"></h2>
-            <div style="display:flex; gap:8px;">
-                <button onclick="pushThreeDaysNotification()">🔔 發送近3日行程通知</button>
-                <button onclick="changeMonth(1)">下個月 &gt;</button>
-            </div>
+            <button onclick="changeMonth(1)">下個月 &gt;</button>
         </div>
         <div class="calendar-grid" id="calendar-grid"></div>
         
@@ -522,31 +519,6 @@
     function scrollToEditExpense() {
         closeDayDetailModal();
         document.getElementById('expense-amount').focus();
-    }
-
-    /* ---- 發送近 3 日行程推播通知 ---- */
-    function pushThreeDaysNotification() {
-        const today = new Date();
-        let messageArr = [];
-
-        for (let i = 0; i < 3; i++) {
-            let targetDate = new Date();
-            targetDate.setDate(today.getDate() + i);
-            let dateStr = formatDate(targetDate);
-            
-            let label = i === 0 ? '【本日】' : i === 1 ? '【明日】' : '【後日】';
-            let daySchedules = db.schedules[dateStr] || [];
-
-            if (daySchedules.length > 0) {
-                let itemsText = daySchedules.map(s => `${s.startTime} ${s.title}`).join(', ');
-                messageArr.push(`${label} ${dateStr}: ${itemsText}`);
-            } else {
-                messageArr.push(`${label} ${dateStr}: 無行程`);
-            }
-        }
-
-        let fullContent = messageArr.join('\n');
-        showNotification('📌 近 3 日行程總覽', fullContent);
     }
 
     function addOrUpdateSchedule() {
