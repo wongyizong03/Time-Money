@@ -35,6 +35,7 @@
             --border-color: #e2e8f0;
             --danger-color: #ef4444;
             --success-color: #10b981;
+            --warning-color: #f59e0b;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -70,18 +71,23 @@
         button { background-color: var(--primary-color); color: white; border: none; cursor: pointer; font-weight: 500; }
         button:hover { opacity: 0.9; }
         button.danger { background-color: var(--danger-color); padding: 4px 8px; font-size: 0.8rem; }
+        button.secondary { background-color: #64748b; padding: 4px 8px; font-size: 0.8rem; }
+        button.action-btn { padding: 4px 8px; font-size: 0.8rem; }
 
         /* 列表樣式 */
-        .item-list { list-style: none; max-height: 250px; overflow-y: auto; }
+        .item-list { list-style: none; max-height: 300px; overflow-y: auto; }
         .item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
         .item-row:last-child { border-bottom: none; }
         .item-time { color: #64748b; font-size: 0.85rem; margin-right: 8px; font-weight: 500; }
+        .item-remind { font-size: 0.75rem; color: var(--warning-color); margin-top: 2px; }
         
         .amount-income { color: var(--success-color); font-weight: bold; }
         .amount-expense { color: var(--danger-color); font-weight: bold; }
 
         /* 統計列 */
         .summary-bar { display: flex; justify-content: space-around; background: #f1f5f9; padding: 12px; border-radius: 8px; margin-top: 15px; font-weight: bold; font-size: 0.95rem; }
+        
+        .btn-group { display: flex; gap: 4px; align-items: center; }
     </style>
 </head>
 <body>
@@ -104,7 +110,7 @@
         </div>
     </div>
 
-    <!-- 2. 當日日程表 (細緻至時分) -->
+    <!-- 2. 當日日程表 (新增訊息提示 & 複製行程) -->
     <div class="card">
         <h2>
             <span>📅 日程規劃</span>
@@ -116,13 +122,19 @@
             <span>至</span>
             <input type="time" id="schedule-end-time" required>
             <input type="text" id="schedule-title" placeholder="日程名稱 / 活動" style="flex:1;" required>
-            <button onclick="addSchedule()">新增</button>
+            <select id="schedule-reminder" style="width: 100%;">
+                <option value="none">🔔 提醒通知：不提醒</option>
+                <option value="1day">提前 1 天提醒</option>
+                <option value="2hours">提前 2 小時提醒</option>
+                <option value="1hour">提前 1 小時提醒</option>
+            </select>
+            <button onclick="addSchedule()" style="width: 100%; margin-top: 4px;">新增行程</button>
         </div>
 
         <ul class="item-list" id="schedule-list"></ul>
     </div>
 
-    <!-- 3. 當日收支計算器 (細緻至時分) -->
+    <!-- 3. 當日收支計算器 -->
     <div class="card">
         <h2>
             <span>💰 收支計算器</span>
@@ -180,9 +192,21 @@
     window.onload = () => {
         document.getElementById('expense-time').value = getCurrentTimeStr();
         document.getElementById('schedule-start-time').value = getCurrentTimeStr();
+        requestNotificationPermission();
         renderCalendar();
         selectDate(selectedDateStr);
+        
+        // 啟動背景提醒檢查（每分鐘檢查一次）
+        setInterval(checkReminders, 60000);
+        checkReminders();
     };
+
+    // 請求瀏覽器通知權限
+    function requestNotificationPermission() {
+        if ("Notification" in window && Notification.permission === "default") {
+            Notification.requestPermission();
+        }
+    }
 
     function renderCalendar() {
         const year = currentDate.getFullYear();
@@ -212,11 +236,9 @@
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const isSelected = dateStr === selectedDateStr ? 'selected' : '';
             
-            // 判斷當天是否有日程或收支
             const hasSchedule = db.schedules[dateStr] && db.schedules[dateStr].length > 0;
             const hasExpense = db.expenses[dateStr] && db.expenses[dateStr].length > 0;
 
-            // 計算月度總額
             if (db.expenses[dateStr]) {
                 db.expenses[dateStr].forEach(item => {
                     if (item.type === 'income') monthIncome += item.amount;
@@ -236,7 +258,6 @@
                 </div>`;
         }
 
-        // 更新當月總計
         document.getElementById('month-income').innerText = `$${monthIncome.toFixed(1)}`;
         document.getElementById('month-expense').innerText = `$${monthExpense.toFixed(1)}`;
         const monthBalance = monthIncome - monthExpense;
@@ -261,10 +282,12 @@
         renderExpenses();
     }
 
+    // 2. 日程表邏輯（新增訊息提示功能）
     function addSchedule() {
         const startTime = document.getElementById('schedule-start-time').value;
         const endTime = document.getElementById('schedule-end-time').value;
         const title = document.getElementById('schedule-title').value.trim();
+        const reminder = document.getElementById('schedule-reminder').value;
 
         if (!startTime || !title) {
             alert('請填寫開始時間與日程名稱！');
@@ -277,7 +300,9 @@
             id: Date.now(),
             startTime,
             endTime: endTime || startTime,
-            title
+            title,
+            reminder,
+            notified: false
         });
 
         db.schedules[selectedDateStr].sort((a, b) => a.startTime.localeCompare(b.startTime));
@@ -286,6 +311,34 @@
         renderSchedules();
         renderCalendar();
         document.getElementById('schedule-title').value = '';
+        document.getElementById('schedule-reminder').value = 'none';
+    }
+
+    // 複製行程到其他日期
+    function copySchedule(id) {
+        const targetDate = prompt('請輸入要複製到的日期 (格式: YYYY-MM-DD):', selectedDateStr);
+        if (!targetDate || !/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
+            if (targetDate) alert('日期格式不正確！');
+            return;
+        }
+
+        const currentItems = db.schedules[selectedDateStr] || [];
+        const itemToCopy = currentItems.find(item => item.id === id);
+
+        if (itemToCopy) {
+            if (!db.schedules[targetDate]) db.schedules[targetDate] = [];
+            
+            db.schedules[targetDate].push({
+                ...itemToCopy,
+                id: Date.now(),
+                notified: false
+            });
+
+            db.schedules[targetDate].sort((a, b) => a.startTime.localeCompare(b.startTime));
+            saveData();
+            renderCalendar();
+            alert(`已順利複製行程到 ${targetDate}！`);
+        }
     }
 
     function deleteSchedule(id) {
@@ -293,6 +346,15 @@
         saveData();
         renderSchedules();
         renderCalendar();
+    }
+
+    function getReminderText(type) {
+        switch(type) {
+            case '1day': return '🔔 提前1天提醒';
+            case '2hours': return '🔔 提前2小時提醒';
+            case '1hour': return '🔔 提前1小時提醒';
+            default: return '';
+        }
     }
 
     function renderSchedules() {
@@ -309,19 +371,61 @@
             const timeText = item.endTime && item.endTime !== item.startTime 
                 ? `${item.startTime} - ${item.endTime}` 
                 : item.startTime;
+            
+            const remindText = getReminderText(item.reminder);
                 
             list.innerHTML += `
                 <li class="item-row">
                     <div>
-                        <span class="item-time">[${timeText}]</span>
-                        <span>${escapeHtml(item.title)}</span>
+                        <div>
+                            <span class="item-time">[${timeText}]</span>
+                            <span>${escapeHtml(item.title)}</span>
+                        </div>
+                        ${remindText ? `<div class="item-remind">${remindText}</div>` : ''}
                     </div>
-                    <button class="danger" onclick="deleteSchedule(${item.id})">刪除</button>
+                    <div class="btn-group">
+                        <button class="secondary action-btn" onclick="copySchedule(${item.id})">複製</button>
+                        <button class="danger action-btn" onclick="deleteSchedule(${item.id})">刪除</button>
+                    </div>
                 </li>
             `;
         });
     }
 
+    // 背景檢查並推播提醒通知
+    function checkReminders() {
+        const now = new Date();
+        
+        Object.keys(db.schedules).forEach(dateStr => {
+            db.schedules[dateStr].forEach(item => {
+                if (item.reminder && item.reminder !== 'none' && !item.notified) {
+                    const eventTime = new Date(`${dateStr}T${item.startTime}:00`);
+                    let triggerTime = new Date(eventTime);
+
+                    if (item.reminder === '1day') triggerTime.setDate(triggerTime.getDate() - 1);
+                    else if (item.reminder === '2hours') triggerTime.setHours(triggerTime.getHours() - 2);
+                    else if (item.reminder === '1hour') triggerTime.setHours(triggerTime.getHours() - 1);
+
+                    // 如果時間到了或已過期5分鐘內，觸發提醒
+                    if (now >= triggerTime && now <= new Date(triggerTime.getTime() + 5 * 60000)) {
+                        item.notified = true;
+                        saveData();
+                        showNotification(`⏰ 行程提醒：${item.title}`, `開始時間：${dateStr} ${item.startTime}`);
+                    }
+                }
+            });
+        });
+    }
+
+    function showNotification(title, body) {
+        if ("Notification" in window && Notification.permission === "granted") {
+            new Notification(title, { body, icon: 'icon-192.png' });
+        } else {
+            alert(`${title}\n${body}`);
+        }
+    }
+
+    // 3. 收支計算器邏輯
     function addExpense() {
         const time = document.getElementById('expense-time').value;
         const type = document.getElementById('expense-type').value;
@@ -386,7 +490,7 @@
                         </div>
                         <div>
                             <span class="${amountClass}" style="margin-right:10px;">${sign}$${item.amount.toFixed(1)}</span>
-                            <button class="danger" onclick="deleteExpense(${item.id})">刪除</button>
+                            <button class="danger action-btn" onclick="deleteExpense(${item.id})">刪除</button>
                         </div>
                     </li>
                 `;
