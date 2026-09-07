@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>光陰與金 - 完整功能版</title>
-    <!-- 載入 Google 登入 API -->
+    <title>光陰與金 - Google 雲端完整版</title>
+    <!-- Google 登入 API -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         :root { 
@@ -28,9 +28,11 @@
         .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .user-info { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; }
         .user-avatar { width: 32px; height: 32px; border-radius: 50%; }
-        h2 { font-size: 1.2rem; color: var(--primary-color); display: flex; justify-content: space-between; align-items: center; }
+        h2 { font-size: 1.2rem; color: var(--primary-color); display: flex; align-items: center; justify-content: space-between; }
+        
+        /* 日曆樣式 */
         .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .calendar-header button { background: var(--primary-light); color: var(--primary-color); border: 1px solid var(--border-color); padding: 6px 14px; border-radius: 20px; cursor: pointer; }
+        .calendar-header button { background: var(--primary-light); color: var(--primary-color); border: 1px solid var(--border-color); padding: 6px 14px; border-radius: 20px; cursor: pointer; font-weight: 600; }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; }
         .calendar-day-head { font-weight: 600; padding: 8px 0; color: var(--text-muted); font-size: 0.85rem; }
         .calendar-day { padding: 12px 0; border-radius: 10px; cursor: pointer; font-size: 0.95rem; position: relative; font-weight: 500; }
@@ -42,18 +44,25 @@
         .dot-schedule { background-color: var(--primary-color); }
         .selected .dot-schedule { background-color: #fff; }
         .dot-expense { background-color: #d97706; }
-        .form-group { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
-        input, select, button { padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.9rem; outline: none; }
+
+        /* 表單與清單 */
+        .form-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; background: var(--primary-light); padding: 12px; border-radius: 12px; }
+        .form-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        input, select, button { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.88rem; outline: none; }
+        input[type="text"], input[type="number"] { flex: 1; }
         button { background-color: var(--primary-color); color: white; border: none; cursor: pointer; font-weight: 600; }
         button:hover { background-color: var(--primary-hover); }
-        button.danger { background-color: #fee2e2; color: var(--danger-color); padding: 5px 10px; font-size: 0.8rem; }
-        .item-list { list-style: none; max-height: 320px; overflow-y: auto; }
-        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
-        .item-time { color: var(--primary-color); font-weight: 600; margin-right: 8px; }
-        .amount-expense { color: var(--danger-color); font-weight: 700; }
-        .status-tag { font-size: 0.8rem; padding: 2px 8px; border-radius: 12px; font-weight: normal; }
-        .status-online { background: #dcfce7; color: #15803d; }
-        .status-offline { background: #f3f4f6; color: #4b5563; }
+        button.danger { background-color: #fee2e2; color: var(--danger-color); padding: 4px 8px; font-size: 0.75rem; }
+        button.action-btn { background-color: #f3f4f6; color: #374151; padding: 4px 8px; font-size: 0.75rem; border: 1px solid #d1d5db; }
+        
+        .item-list { list-style: none; max-height: 360px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        .item-card { background: #fff; border: 1px solid var(--border-color); padding: 12px; border-radius: 10px; display: flex; justify-content: space-between; align-items: flex-start; }
+        .item-details { display: flex; flex-direction: column; gap: 4px; }
+        .item-time { color: var(--primary-color); font-weight: 600; font-size: 0.85rem; }
+        .item-title { font-weight: 600; font-size: 0.95rem; }
+        .item-sub { font-size: 0.8rem; color: var(--text-muted); }
+        .item-actions { display: flex; gap: 4px; }
+        .amount-expense { color: var(--danger-color); font-weight: 700; font-size: 1rem; }
     </style>
 </head>
 <body>
@@ -61,9 +70,9 @@
 <div class="container">
     <div class="card full-width">
         <div class="top-bar">
-            <h2>📅 光陰與金 - 記事與記帳</h2>
+            <h2>📅 記事與記帳日曆</h2>
+            <!-- Google 登入區塊 -->
             <div id="auth-section">
-                <!-- 請替換為你驗證成功的 Client ID -->
                 <div id="g_id_onload"
                     data-client_id="690512017883-0j2kk3tk1viomcqor8i88n2vmqs0jsqv.apps.googleusercontent.com"
                     data-callback="handleCredentialResponse">
@@ -79,31 +88,47 @@
 
         <div class="calendar-header">
             <button onclick="changeMonth(-1)">&lt; 上個月</button>
-            <h2>
-                <span id="month-year-display"></span>
-                <span id="sync-status" class="status-tag status-offline">本地存儲</span>
-            </h2>
+            <h2 id="month-year-display"></h2>
             <button onclick="changeMonth(1)">下個月 &gt;</button>
         </div>
         <div class="calendar-grid" id="calendar-grid"></div>
     </div>
 
+    <!-- 📅 行程管理卡片（恢復舊版完整功能） -->
     <div class="card">
         <h2>📅 行程管理</h2>
         <div class="form-group">
-            <input type="time" id="sch-time" value="09:00">
-            <input type="text" id="sch-title" placeholder="行程名稱" style="flex:1;">
-            <button onclick="addSchedule()">新增</button>
+            <div class="form-row">
+                <label style="font-size: 0.8rem;">時間：</label>
+                <input type="time" id="sch-start" value="09:00">
+                <span>至</span>
+                <input type="time" id="sch-end" value="10:00">
+            </div>
+            <div class="form-row">
+                <input type="text" id="sch-title" placeholder="行程名稱（必填）">
+            </div>
+            <div class="form-row">
+                <input type="text" id="sch-location" placeholder="地點（選填）">
+                <select id="sch-reminder">
+                    <option value="none">不提醒</option>
+                    <option value="at_time">準時提醒</option>
+                    <option value="15_min">15分鐘前</option>
+                </select>
+                <button onclick="addSchedule()">新增</button>
+            </div>
         </div>
         <ul class="item-list" id="sch-list"></ul>
     </div>
 
+    <!-- 💰 記帳管理卡片 -->
     <div class="card">
         <h2>💰 記帳管理</h2>
         <div class="form-group">
-            <input type="number" id="exp-amount" placeholder="金額" style="width:100px;">
-            <input type="text" id="exp-note" placeholder="備註" style="flex:1;">
-            <button onclick="addExpense()">紀錄</button>
+            <div class="form-row">
+                <input type="number" id="exp-amount" placeholder="金額 ($)" style="width: 100px;">
+                <input type="text" id="exp-note" placeholder="備註（例：晚餐、搭車）">
+                <button onclick="addExpense()">紀錄</button>
+            </div>
         </div>
         <ul class="item-list" id="exp-list"></ul>
     </div>
@@ -113,7 +138,7 @@
     let currentDate = new Date();
     let selectedDateStr = formatDate(new Date());
     
-    // 讀取 LocalStorage 資料
+    // 初始化本地與雲端同步結構
     let db = JSON.parse(localStorage.getItem('my_calendar_db')) || { schedules: {}, expenses: {} };
 
     function saveData() {
@@ -127,30 +152,28 @@
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     }
 
-    // --- Google 登入解析 (JWT) ---
+    // --- Google 登入邏輯 ---
     function parseJwt(token) {
         try {
             const base64Url = token.split('.')[1];
             const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
             return JSON.parse(window.atob(base64));
-        } catch (e) {
-            return null;
-        }
+        } catch (e) { return null; }
     }
 
     function handleCredentialResponse(response) {
-        const responsePayload = parseJwt(response.credential);
-        if (responsePayload) {
+        const payload = parseJwt(response.credential);
+        if (payload) {
             document.getElementById('auth-section').style.display = 'none';
             document.getElementById('user-section').style.display = 'flex';
-            document.getElementById('user-name').innerText = responsePayload.name;
-            document.getElementById('user-pic').src = responsePayload.picture;
+            document.getElementById('user-name').innerText = payload.name;
+            document.getElementById('user-pic').src = payload.picture;
+            localStorage.setItem('google_user', JSON.stringify(payload));
             
-            const statusTag = document.getElementById('sync-status');
-            statusTag.className = 'status-tag status-online';
-            statusTag.innerText = '已連結 Google';
-
-            localStorage.setItem('google_user', JSON.stringify(responsePayload));
+            // 請求瀏覽器通知權限
+            if (Notification.permission !== "granted") {
+                Notification.requestPermission();
+            }
         }
     }
 
@@ -158,10 +181,6 @@
         localStorage.removeItem('google_user');
         document.getElementById('auth-section').style.display = 'block';
         document.getElementById('user-section').style.display = 'none';
-
-        const statusTag = document.getElementById('sync-status');
-        statusTag.className = 'status-tag status-offline';
-        statusTag.innerText = '本地存儲';
     }
 
     function checkPreviousLogin() {
@@ -172,14 +191,26 @@
             document.getElementById('user-section').style.display = 'flex';
             document.getElementById('user-name').innerText = user.name;
             document.getElementById('user-pic').src = user.picture;
-
-            const statusTag = document.getElementById('sync-status');
-            statusTag.className = 'status-tag status-online';
-            statusTag.innerText = '已連結 Google';
         }
     }
 
-    // --- 日曆核心邏輯 ---
+    // --- 時間通知功能 ---
+    function checkNotifications() {
+        if (Notification.permission !== "granted") return;
+        const now = new Date();
+        const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        const todayStr = formatDate(now);
+
+        const todaySchedules = db.schedules[todayStr] || [];
+        todaySchedules.forEach(item => {
+            if (item.reminder === 'at_time' && item.startTime === currentTime) {
+                new Notification(`📅 行程提醒：${item.title}`, { body: `時間：${item.startTime} - ${item.endTime}\n地點：${item.location || '無'}` });
+            }
+        });
+    }
+    setInterval(checkNotifications, 60000); // 每分鐘檢查一次
+
+    // --- 日曆渲染 ---
     window.onload = () => {
         checkPreviousLogin();
         renderCalendar();
@@ -222,16 +253,42 @@
         renderExpenses();
     }
 
+    // --- 行程功能 (舊版功能完整還原) ---
     function addSchedule() {
         const title = document.getElementById('sch-title').value.trim();
-        const startTime = document.getElementById('sch-time').value;
-        if (!title || !startTime) return alert('請輸入時間與標題');
+        const startTime = document.getElementById('sch-start').value;
+        const endTime = document.getElementById('sch-end').value;
+        const location = document.getElementById('sch-location').value.trim();
+        const reminder = document.getElementById('sch-reminder').value;
+
+        if (!title) return alert('請輸入行程名稱');
 
         if (!db.schedules[selectedDateStr]) db.schedules[selectedDateStr] = [];
-        db.schedules[selectedDateStr].push({ id: Date.now(), startTime, title });
+        db.schedules[selectedDateStr].push({
+            id: Date.now(),
+            startTime,
+            endTime,
+            title,
+            location,
+            reminder
+        });
 
         document.getElementById('sch-title').value = '';
+        document.getElementById('sch-location').value = '';
         saveData();
+    }
+
+    function copySchedule(id) {
+        const item = db.schedules[selectedDateStr].find(s => s.id === id);
+        if (!item) return;
+        
+        const targetDate = prompt("請輸入要複製到的日期 (格式: YYYY-MM-DD):", selectedDateStr);
+        if (targetDate) {
+            if (!db.schedules[targetDate]) db.schedules[targetDate] = [];
+            db.schedules[targetDate].push({ ...item, id: Date.now() });
+            saveData();
+            alert("複製成功！");
+        }
     }
 
     function deleteSchedule(id) {
@@ -243,12 +300,27 @@
         const list = document.getElementById('sch-list');
         list.innerHTML = '';
         const items = db.schedules[selectedDateStr] || [];
-        if (!items.length) return list.innerHTML = '<li class="item-row">無行程</li>';
+        if (!items.length) return list.innerHTML = '<li style="text-align:center; color:var(--text-muted); font-size:0.9rem; padding:12px;">本日無行程</li>';
+        
         items.forEach(item => {
-            list.innerHTML += `<li class="item-row"><span><span class="item-time">${item.startTime}</span>${item.title}</span><button class="danger" onclick="deleteSchedule(${item.id})">刪除</button></li>`;
+            const locText = item.location ? `📍 ${item.location}` : '';
+            const remindText = item.reminder !== 'none' ? '⏰ 已設提醒' : '';
+            list.innerHTML += `
+                <li class="item-card">
+                    <div class="item-details">
+                        <span class="item-time">⏱️ ${item.startTime} - ${item.endTime}</span>
+                        <span class="item-title">${item.title}</span>
+                        <span class="item-sub">${locText} ${remindText}</span>
+                    </div>
+                    <div class="item-actions">
+                        <button class="action-btn" onclick="copySchedule(${item.id})">複製</button>
+                        <button class="danger" onclick="deleteSchedule(${item.id})">刪除</button>
+                    </div>
+                </li>`;
         });
     }
 
+    // --- 記帳功能 ---
     function addExpense() {
         const amount = parseFloat(document.getElementById('exp-amount').value);
         const note = document.getElementById('exp-note').value.trim();
@@ -271,9 +343,19 @@
         const list = document.getElementById('exp-list');
         list.innerHTML = '';
         const items = db.expenses[selectedDateStr] || [];
-        if (!items.length) return list.innerHTML = '<li class="item-row">無記帳</li>';
+        if (!items.length) return list.innerHTML = '<li style="text-align:center; color:var(--text-muted); font-size:0.9rem; padding:12px;">本日無記帳紀錄</li>';
+        
         items.forEach(item => {
-            list.innerHTML += `<li class="item-row"><span>${item.note}</span><div><span class="amount-expense">-$${item.amount}</span> <button class="danger" onclick="deleteExpense(${item.id})">刪除</button></div></li>`;
+            list.innerHTML += `
+                <li class="item-card">
+                    <div class="item-details">
+                        <span class="item-title">${item.note}</span>
+                    </div>
+                    <div class="item-actions" style="align-items: center; gap: 10px;">
+                        <span class="amount-expense">-$${item.amount}</span>
+                        <button class="danger" onclick="deleteExpense(${item.id})">刪除</button>
+                    </div>
+                </li>`;
         });
     }
 
