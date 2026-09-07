@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>日程 + 日曆 + 收支計算器</title>
+    <title>光陰與金</title>
 
     <!-- PWA Manifest 與主題顏色 -->
     <link rel="manifest" href="manifest.json">
@@ -12,7 +12,7 @@
     <!-- iOS Apple 專用設定 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="日程收支">
+    <meta name="apple-mobile-web-app-title" content="光陰與金">
     <link rel="apple-touch-icon" href="icon-192.png">
 
     <!-- 註冊 Service Worker -->
@@ -79,6 +79,7 @@
         .item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
         .item-row:last-child { border-bottom: none; }
         .item-time { color: #64748b; font-size: 0.85rem; margin-right: 8px; font-weight: 500; }
+        .item-location { font-size: 0.8rem; color: #475569; margin-top: 2px; }
         .item-remind { font-size: 0.75rem; color: var(--warning-color); margin-top: 2px; }
         
         .amount-income { color: var(--success-color); font-weight: bold; }
@@ -110,10 +111,10 @@
         </div>
     </div>
 
-    <!-- 2. 當日日程表 (新增訊息提示 & 複製行程) -->
+    <!-- 2. 當日日程表 (新增地點欄位) -->
     <div class="card">
         <h2>
-            <span>📅 日程規劃</span>
+            <span>📅 光陰規劃</span>
             <span id="selected-date-display-1" style="font-size:0.9rem; color:#64748b;"></span>
         </h2>
         
@@ -122,6 +123,7 @@
             <span>至</span>
             <input type="time" id="schedule-end-time" required>
             <input type="text" id="schedule-title" placeholder="日程名稱 / 活動" style="flex:1;" required>
+            <input type="text" id="schedule-location" placeholder="📍 活動地點 (選填)" style="width: 100%;">
             <select id="schedule-reminder" style="width: 100%;">
                 <option value="none">🔔 提醒通知：不提醒</option>
                 <option value="1day">提前 1 天提醒</option>
@@ -137,7 +139,7 @@
     <!-- 3. 當日收支計算器 -->
     <div class="card">
         <h2>
-            <span>💰 收支計算器</span>
+            <span>💰 金錢計算器</span>
             <span id="selected-date-display-2" style="font-size:0.9rem; color:#64748b;"></span>
         </h2>
 
@@ -196,12 +198,10 @@
         renderCalendar();
         selectDate(selectedDateStr);
         
-        // 啟動背景提醒檢查（每分鐘檢查一次）
         setInterval(checkReminders, 60000);
         checkReminders();
     };
 
-    // 請求瀏覽器通知權限
     function requestNotificationPermission() {
         if ("Notification" in window && Notification.permission === "default") {
             Notification.requestPermission();
@@ -282,11 +282,12 @@
         renderExpenses();
     }
 
-    // 2. 日程表邏輯（新增訊息提示功能）
+    // 2. 日程表邏輯
     function addSchedule() {
         const startTime = document.getElementById('schedule-start-time').value;
         const endTime = document.getElementById('schedule-end-time').value;
         const title = document.getElementById('schedule-title').value.trim();
+        const location = document.getElementById('schedule-location').value.trim();
         const reminder = document.getElementById('schedule-reminder').value;
 
         if (!startTime || !title) {
@@ -301,6 +302,7 @@
             startTime,
             endTime: endTime || startTime,
             title,
+            location,
             reminder,
             notified: false
         });
@@ -311,10 +313,10 @@
         renderSchedules();
         renderCalendar();
         document.getElementById('schedule-title').value = '';
+        document.getElementById('schedule-location').value = '';
         document.getElementById('schedule-reminder').value = 'none';
     }
 
-    // 複製行程到其他日期
     function copySchedule(id) {
         const targetDate = prompt('請輸入要複製到的日期 (格式: YYYY-MM-DD):', selectedDateStr);
         if (!targetDate || !/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
@@ -381,6 +383,7 @@
                             <span class="item-time">[${timeText}]</span>
                             <span>${escapeHtml(item.title)}</span>
                         </div>
+                        ${item.location ? `<div class="item-location">📍 ${escapeHtml(item.location)}</div>` : ''}
                         ${remindText ? `<div class="item-remind">${remindText}</div>` : ''}
                     </div>
                     <div class="btn-group">
@@ -392,7 +395,6 @@
         });
     }
 
-    // 背景檢查並推播提醒通知
     function checkReminders() {
         const now = new Date();
         
@@ -406,11 +408,11 @@
                     else if (item.reminder === '2hours') triggerTime.setHours(triggerTime.getHours() - 2);
                     else if (item.reminder === '1hour') triggerTime.setHours(triggerTime.getHours() - 1);
 
-                    // 如果時間到了或已過期5分鐘內，觸發提醒
                     if (now >= triggerTime && now <= new Date(triggerTime.getTime() + 5 * 60000)) {
                         item.notified = true;
                         saveData();
-                        showNotification(`⏰ 行程提醒：${item.title}`, `開始時間：${dateStr} ${item.startTime}`);
+                        const locInfo = item.location ? `\n地點：${item.location}` : '';
+                        showNotification(`⏰ 光陰與金行程提醒：${item.title}`, `時間：${dateStr} ${item.startTime}${locInfo}`);
                     }
                 }
             });
