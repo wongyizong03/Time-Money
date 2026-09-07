@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>光陰與金 - Google 帳號同步版</title>
+    <title>光陰與金 - 完整功能版</title>
     <!-- 載入 Google 登入 API -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
@@ -28,7 +28,7 @@
         .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .user-info { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; }
         .user-avatar { width: 32px; height: 32px; border-radius: 50%; }
-        h2 { font-size: 1.2rem; color: var(--primary-color); }
+        h2 { font-size: 1.2rem; color: var(--primary-color); display: flex; justify-content: space-between; align-items: center; }
         .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .calendar-header button { background: var(--primary-light); color: var(--primary-color); border: 1px solid var(--border-color); padding: 6px 14px; border-radius: 20px; cursor: pointer; }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; }
@@ -47,11 +47,13 @@
         button { background-color: var(--primary-color); color: white; border: none; cursor: pointer; font-weight: 600; }
         button:hover { background-color: var(--primary-hover); }
         button.danger { background-color: #fee2e2; color: var(--danger-color); padding: 5px 10px; font-size: 0.8rem; }
-        button.google-btn { background: #fff; color: #333; border: 1px solid #ccc; font-weight: normal; display: flex; align-items: center; gap: 8px; }
         .item-list { list-style: none; max-height: 320px; overflow-y: auto; }
         .item-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
         .item-time { color: var(--primary-color); font-weight: 600; margin-right: 8px; }
         .amount-expense { color: var(--danger-color); font-weight: 700; }
+        .status-tag { font-size: 0.8rem; padding: 2px 8px; border-radius: 12px; font-weight: normal; }
+        .status-online { background: #dcfce7; color: #15803d; }
+        .status-offline { background: #f3f4f6; color: #4b5563; }
     </style>
 </head>
 <body>
@@ -59,8 +61,9 @@
 <div class="container">
     <div class="card full-width">
         <div class="top-bar">
-            <h2>📅 記事與記帳日曆</h2>
+            <h2>📅 光陰與金 - 記事與記帳</h2>
             <div id="auth-section">
+                <!-- 請替換為你驗證成功的 Client ID -->
                 <div id="g_id_onload"
                     data-client_id="690512017883-0j2kk3tk1viomcqor8i88n2vmqs0jsqv.apps.googleusercontent.com"
                     data-callback="handleCredentialResponse">
@@ -76,7 +79,10 @@
 
         <div class="calendar-header">
             <button onclick="changeMonth(-1)">&lt; 上個月</button>
-            <h2 id="month-year-display"></h2>
+            <h2>
+                <span id="month-year-display"></span>
+                <span id="sync-status" class="status-tag status-offline">本地存儲</span>
+            </h2>
             <button onclick="changeMonth(1)">下個月 &gt;</button>
         </div>
         <div class="calendar-grid" id="calendar-grid"></div>
@@ -107,7 +113,7 @@
     let currentDate = new Date();
     let selectedDateStr = formatDate(new Date());
     
-    // 初始化單機 LocalStorage 資料結構
+    // 讀取 LocalStorage 資料
     let db = JSON.parse(localStorage.getItem('my_calendar_db')) || { schedules: {}, expenses: {} };
 
     function saveData() {
@@ -140,7 +146,10 @@
             document.getElementById('user-name').innerText = responsePayload.name;
             document.getElementById('user-pic').src = responsePayload.picture;
             
-            // 將用戶資訊存至本地
+            const statusTag = document.getElementById('sync-status');
+            statusTag.className = 'status-tag status-online';
+            statusTag.innerText = '已連結 Google';
+
             localStorage.setItem('google_user', JSON.stringify(responsePayload));
         }
     }
@@ -149,6 +158,10 @@
         localStorage.removeItem('google_user');
         document.getElementById('auth-section').style.display = 'block';
         document.getElementById('user-section').style.display = 'none';
+
+        const statusTag = document.getElementById('sync-status');
+        statusTag.className = 'status-tag status-offline';
+        statusTag.innerText = '本地存儲';
     }
 
     function checkPreviousLogin() {
@@ -159,6 +172,10 @@
             document.getElementById('user-section').style.display = 'flex';
             document.getElementById('user-name').innerText = user.name;
             document.getElementById('user-pic').src = user.picture;
+
+            const statusTag = document.getElementById('sync-status');
+            statusTag.className = 'status-tag status-online';
+            statusTag.innerText = '已連結 Google';
         }
     }
 
