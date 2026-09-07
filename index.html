@@ -195,6 +195,20 @@
             font-size: 0.95rem; font-weight: 700; color: var(--primary-color);
             margin: 14px 0 8px 0; padding-bottom: 4px; border-bottom: 2px solid var(--primary-light);
         }
+
+        .close-icon-btn {
+            background: transparent;
+            color: var(--text-muted);
+            border: none;
+            font-size: 1.2rem;
+            padding: 0 4px;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .close-icon-btn:hover {
+            color: var(--primary-color);
+            background: transparent;
+        }
     </style>
 </head>
 <body>
@@ -282,12 +296,12 @@
     </div>
 </div>
 
-<!-- 4. 點擊日期自動彈出「當天行程與明細 Modal」 -->
+<!-- 4. 點擊日期自動彈出「當天行程 Modal」 -->
 <div class="modal-overlay" id="day-detail-modal">
     <div class="modal-card">
         <h2>
-            <span id="day-modal-title">📅 當日行程摘要</span>
-            <button class="cancel-btn action-btn" onclick="closeDayDetailModal()">✕ 關閉</button>
+            <span id="day-modal-title">📅 當日行程</span>
+            <button class="close-icon-btn" onclick="closeDayDetailModal()">✕</button>
         </h2>
 
         <div class="popup-section-title">📅 當日日程</div>
@@ -453,7 +467,7 @@
 
     /* ---- 當日詳情 Modal 邏輯 ---- */
     function openDayDetailModal(dateStr) {
-        document.getElementById('day-modal-title').innerText = `📅 ${dateStr} 行程與明細`;
+        document.getElementById('day-modal-title').innerText = `📅 ${dateStr} 行程`;
         
         // 渲染 Modal 內的行程
         const scheduleList = document.getElementById('day-modal-schedule-list');
@@ -913,9 +927,6 @@
         return text.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
     }
 </script>
-
-</body>
-</html>
 
 </body>
 </html>
